@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Expert Mode - Snow Genius</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <img src="/static/logo.png" alt="Expert Mode Logo" class="logo">
+        <h1>Snow Genius</h1>
+        <h2>EXPERT MODE</h2>
+        <p>Find the lowest-cost ski pass that meets your exact plan.</p>
+
+        <form id="expertForm">
+            <h3>Riders</h3>
+            <div id="riders">
+                <div class="rider">
+                    <input type="number" placeholder="Age" name="age">
+                    <select name="type">
+                        <option>Adult</option>
+                        <option>Teen</option>
+                        <option>Child</option>
+                    </select>
+                    <select name="category">
+                        <option>None</option>
+                        <option>Military</option>
+                        <option>Student</option>
+                        <option>Nurse</option>
+                    </select>
+                </div>
+            </div>
+            <button type="button" onclick="addRider()">+ Add Rider</button>
+
+            <h3>Resorts</h3>
+            <div id="resorts">
+                <div class="resort">
+                    <select name="resort">
+                        <option value="">-- Select resort --</option>
+                    </select>
+                    <input type="number" placeholder="Days" name="days">
+                    <label><input type="checkbox" name="blackout"> Blackout Days</label>
+                </div>
+            </div>
+            <button type="button" onclick="addResort()">+ Add Resort</button>
+
+            <button type="submit">Submit</button>
+        </form>
+    </div>
+    <script src="/static/script.js"></script>
+</body>
+</html>

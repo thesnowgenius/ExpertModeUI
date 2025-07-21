@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Snow Genius Expert Mode</title>
+    <link rel="stylesheet" href="static/style.css">
+</head>
+<body>
+    <div class="container">
+        <img src="static/logo.png" alt="Logo" class="logo">
+        <h1>Snow Genius</h1>
+        <h2>EXPERT MODE</h2>
+        <p>Find the lowest-cost ski pass that meets your exact plan.</p>
+
+        <form id="expertForm">
+            <h3>Riders</h3>
+            <div id="riders">
+                <div class="rider">
+                    <input type="number" placeholder="Age" name="age">
+                    <select name="category">
+                        <option value="none">None</option>
+                        <option value="military">Military</option>
+                        <option value="student">Student</option>
+                        <option value="nurse">Nurse</option>
+                    </select>
+                </div>
+            </div>
+            <button type="button" onclick="addRider()">+ Add Rider</button>
+
+            <h3>Resorts</h3>
+            <div id="resorts">
+                <div class="resort">
+                    <input type="text" placeholder="Resort ID (e.g., loon)" name="resort_id">
+                    <input type="number" placeholder="Days" name="days">
+                    <label><input type="checkbox" name="blackout"> Blackout Days</label>
+                </div>
+            </div>
+            <button type="button" onclick="addResort()">+ Add Resort</button>
+
+            <button type="submit">Submit</button>
+        </form>
+
+        <pre id="result"></pre>
+    </div>
+    <script src="static/script.js"></script>
+</body>
+</html>
