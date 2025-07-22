@@ -41,7 +41,7 @@ document.getElementById('expertForm').addEventListener('submit', async function(
     const resort_plan = Array.from(document.querySelectorAll('#resorts .resort')).map(div => ({
         resort_id: div.querySelector('select[name="resort_id"]').value,
         days: parseInt(div.querySelector('input[name="days"]').value),
-        blackout: div.querySelector('input[name="blackout"]').checked
+        blackout_ok: div.querySelector('input[name="blackout"]').checked
     }));
 
     if (riders.length === 0 || resort_plan.length === 0) {
