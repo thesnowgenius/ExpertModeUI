@@ -3,7 +3,7 @@ function addRider() {
     const container = document.getElementById('riders');
     const rider = document.createElement('div');
     rider.className = 'rider';
-    rider.innerHTML = '<input type="number" placeholder="Age" name="age">' +
+    rider.innerHTML = '<input type="number" placeholder="Age" name="age" required>' +
                       '<select name="category">' +
                       '<option value="none">None</option>' +
                       '<option value="military">Military</option>' +
@@ -16,8 +16,16 @@ function addResort() {
     const container = document.getElementById('resorts');
     const resort = document.createElement('div');
     resort.className = 'resort';
-    resort.innerHTML = '<input type="text" placeholder="Resort ID (e.g., loon)" name="resort_id">' +
-                       '<input type="number" placeholder="Days" name="days">' +
+    resort.innerHTML = '<select name="resort_id" required>' +
+                       '<option value="">-- Select resort --</option>' +
+                       '<option value="loon">Loon</option>' +
+                       '<option value="stratton">Stratton</option>' +
+                       '<option value="sunday_river">Sunday River</option>' +
+                       '<option value="sugarloaf">Sugarloaf</option>' +
+                       '<option value="okemo">Okemo</option>' +
+                       '<option value="killington">Killington</option>' +
+                       '<option value="cannon">Cannon</option></select>' +
+                       '<input type="number" placeholder="Days" name="days" required>' +
                        '<label><input type="checkbox" name="blackout"> Blackout Days</label>';
     container.appendChild(resort);
 }
@@ -31,10 +39,15 @@ document.getElementById('expertForm').addEventListener('submit', async function(
     }));
 
     const resort_plan = Array.from(document.querySelectorAll('#resorts .resort')).map(div => ({
-        resort_id: div.querySelector('input[name="resort_id"]').value,
+        resort_id: div.querySelector('select[name="resort_id"]').value,
         days: parseInt(div.querySelector('input[name="days"]').value),
         blackout: div.querySelector('input[name="blackout"]').checked
     }));
+
+    if (riders.length === 0 || resort_plan.length === 0) {
+        alert("Please add at least one rider and one resort.");
+        return;
+    }
 
     const response = await fetch('https://pass-picker-expert-mode.onrender.com/expert_mode/calculate', {
         method: 'POST',
