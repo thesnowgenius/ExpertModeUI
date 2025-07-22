@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Expert Mode - Snow Genius</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <title>Snow Genius Expert Mode</title>
+    <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
     <div class="container">
-        <img src="/static/logo.png" alt="Expert Mode Logo" class="logo">
+        <img src="static/logo.png" alt="Logo" class="logo">
         <h1>Snow Genius</h1>
         <h2>EXPERT MODE</h2>
         <p>Find the lowest-cost ski pass that meets your exact plan.</p>
@@ -16,17 +16,12 @@
             <h3>Riders</h3>
             <div id="riders">
                 <div class="rider">
-                    <input type="number" placeholder="Age" name="age">
-                    <select name="type">
-                        <option>Adult</option>
-                        <option>Teen</option>
-                        <option>Child</option>
-                    </select>
+                    <input type="number" placeholder="Age" name="age" required>
                     <select name="category">
-                        <option>None</option>
-                        <option>Military</option>
-                        <option>Student</option>
-                        <option>Nurse</option>
+                        <option value="none">None</option>
+                        <option value="military">Military</option>
+                        <option value="student">Student</option>
+                        <option value="nurse">Nurse</option>
                     </select>
                 </div>
             </div>
@@ -35,18 +30,27 @@
             <h3>Resorts</h3>
             <div id="resorts">
                 <div class="resort">
-                    <select name="resort">
+                    <select name="resort_id" required>
                         <option value="">-- Select resort --</option>
+                        <option value="loon">Loon</option>
+                        <option value="stratton">Stratton</option>
+                        <option value="sunday_river">Sunday River</option>
+                        <option value="sugarloaf">Sugarloaf</option>
+                        <option value="okemo">Okemo</option>
+                        <option value="killington">Killington</option>
+                        <option value="cannon">Cannon</option>
                     </select>
-                    <input type="number" placeholder="Days" name="days">
+                    <input type="number" placeholder="Days" name="days" required>
                     <label><input type="checkbox" name="blackout"> Blackout Days</label>
                 </div>
             </div>
             <button type="button" onclick="addResort()">+ Add Resort</button>
 
-            <button type="submit">Submit</button>
+            <button type="submit" id="submitBtn">Submit</button>
         </form>
+
+        <pre id="result"></pre>
     </div>
-    <script src="/static/script.js"></script>
+    <script src="static/script.js"></script>
 </body>
 </html>
