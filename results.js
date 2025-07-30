@@ -1,62 +1,31 @@
-// Expect a global `data.valid_passes` object already injected or returned from API
-// This is example data structure; replace with dynamic source as needed
-
-const data = {
-  valid_passes: [
-    {
-      pass_id: "ikon_session_2",
-      pass_family_id: "ikon",
-      name: "Ikon Session 2 ",
-      blackout_true: true,
-      total_days: 2,
-      total_cost: 259
-    },
-    {
-      pass_id: "ikon_session_3",
-      pass_family_id: "ikon",
-      name: "Ikon Session 3",
-      blackout_true: true,
-      total_days: 3,
-      total_cost: 389
-    },
-    {
-      pass_id: "ikon_session_4",
-      pass_family_id: "ikon",
-      name: "Ikon Session 4",
-      blackout_true: true,
-      total_days: 4,
-      total_cost: 459
-    },
-    {
-      pass_id: "mountain_collective",
-      pass_family_id: "mountain_collective",
-      name: "Mountain Collective",
-      blackout_true: false,
-      total_days: 34,
-      total_cost: 639
-    },
-    {
-      pass_id: "ikon_base",
-      pass_family_id: "ikon",
-      name: "Ikon Base",
-      blackout_true: true,
-      total_days: 180,
-      total_cost: 909
-    },
-    {
-      pass_id: "ikon",
-      pass_family_id: "ikon",
-      name: "Ikon",
-      blackout_true: false,
-      total_days: 180,
-      total_cost: 1329
-    }
-  ]
-};
-
+let currentResults = [];
 let currentSort = 'total_cost';
 
-function renderCards(sorted) {
+function renderCards(data) {
+  const container = document.getElementById("results-container");
+  const sortBar = document.getElementById("sortBar");
+
+  if (!data || data.length === 0) {
+    container.innerHTML = "<p>No valid passes found.</p>";
+    sortBar.style.display = "none";
+    sendHeight();
+    return;
+  }
+
+  currentResults = data;
+  sortBar.style.display = "block";
+  sortBy(currentSort);
+}
+
+function sortBy(field) {
+  currentSort = field;
+  const sorted = [...currentResults].sort((a, b) => {
+    if (typeof a[field] === "boolean") {
+      return a[field] === b[field] ? 0 : a[field] ? 1 : -1;
+    }
+    return a[field] - b[field];
+  });
+
   const container = document.getElementById("results-container");
   container.innerHTML = "";
 
@@ -74,20 +43,5 @@ function renderCards(sorted) {
     container.appendChild(card);
   });
 
-  sendHeight(); // notify iframe parent of height change
+  sendHeight();
 }
-
-function sortBy(field) {
-  currentSort = field;
-  const sorted = [...data.valid_passes].sort((a, b) => {
-    if (typeof a[field] === "boolean") {
-      return a[field] === b[field] ? 0 : a[field] ? 1 : -1;
-    }
-    return a[field] - b[field];
-  });
-  renderCards(sorted);
-}
-
-window.addEventListener("DOMContentLoaded", () => {
-  sortBy(currentSort);
-});
