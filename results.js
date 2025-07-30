@@ -2,6 +2,8 @@ let currentResults = [];
 let currentSort = 'total_cost';
 
 function renderCards(data) {
+  console.log("renderCards called with:", data);
+
   const container = document.getElementById("results-container");
   const sortBar = document.getElementById("sortBar");
 
@@ -18,6 +20,11 @@ function renderCards(data) {
 }
 
 function sortBy(field) {
+  if (!Array.isArray(currentResults)) {
+    console.warn("No currentResults to sort.");
+    return;
+  }
+
   currentSort = field;
   const sorted = [...currentResults].sort((a, b) => {
     if (typeof a[field] === "boolean") {
@@ -30,6 +37,7 @@ function sortBy(field) {
   container.innerHTML = "";
 
   sorted.forEach(pass => {
+    console.log("Rendering pass:", pass);
     const card = document.createElement("div");
     card.className = "pass-card";
     card.innerHTML = `
