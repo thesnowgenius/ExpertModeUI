@@ -53,14 +53,7 @@
     </div>
     <script src="static/script.js"></script>
 
-    <script>
-function sendHeight() {
-  const height = document.documentElement.scrollHeight;
-  parent.postMessage({ type: "setHeight", height }, "*");
-}
-
-window.addEventListener("load", sendHeight);
-window.addEventListener("resize", sendHeight);
-</script>
+<script src="autoResize.js"></script>
+    
 </body>
 </html>
