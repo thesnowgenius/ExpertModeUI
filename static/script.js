@@ -1,60 +1,32 @@
+document.getElementById("expertForm").addEventListener("submit", async function(e) {
+  e.preventDefault();
 
-function addRider() {
-    const container = document.getElementById('riders');
-    const rider = document.createElement('div');
-    rider.className = 'rider';
-    rider.innerHTML = '<input type="number" placeholder="Age" name="age" required>' +
-                      '<select name="category">' +
-                      '<option value="none">None</option>' +
-                      '<option value="military">Military</option>' +
-                      '<option value="student">Student</option>' +
-                      '<option value="nurse">Nurse</option></select>';
-    container.appendChild(rider);
-}
+  const riders = [...document.querySelectorAll("#riders .rider")].map(div => ({
+    age: parseInt(div.querySelector('input[name="age"]').value),
+    category: div.querySelector('select[name="category"]').value
+  }));
 
-function addResort() {
-    const container = document.getElementById('resorts');
-    const resort = document.createElement('div');
-    resort.className = 'resort';
-    resort.innerHTML = '<select name="resort_id" required>' +
-                       '<option value="">-- Select resort --</option>' +
-                       '<option value="loon">Loon</option>' +
-                       '<option value="stratton">Stratton</option>' +
-                       '<option value="sunday_river">Sunday River</option>' +
-                       '<option value="sugarloaf">Sugarloaf</option>' +
-                       '<option value="okemo">Okemo</option>' +
-                       '<option value="killington">Killington</option>' +
-                       '<option value="cannon">Cannon</option></select>' +
-                       '<input type="number" placeholder="Days" name="days" required>' +
-                       '<label><input type="checkbox" name="blackout"> Blackout Days</label>';
-    container.appendChild(resort);
-}
+  const resorts = [...document.querySelectorAll("#resorts .resort")].map(div => ({
+    resort_id: div.querySelector('select[name="resort_id"]').value,
+    days: parseInt(div.querySelector('input[name="days"]').value),
+    blackout_ok: div.querySelector('input[name="blackout_ok"]').checked
+  }));
 
-document.getElementById('expertForm').addEventListener('submit', async function(e) {
-    e.preventDefault();
+  console.log("Sending to API:", { riders, resorts });
 
-    const riders = Array.from(document.querySelectorAll('#riders .rider')).map(div => ({
-        age: parseInt(div.querySelector('input[name="age"]').value),
-        category: div.querySelector('select[name="category"]').value
-    }));
+  const response = await fetch("https://pass-picker-expert-mode.onrender.com/score_pass", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ riders, resorts })
+  });
 
-    const resort_plan = Array.from(document.querySelectorAll('#resorts .resort')).map(div => ({
-        resort_id: div.querySelector('select[name="resort_id"]').value,
-        days: parseInt(div.querySelector('input[name="days"]').value),
-        blackout_ok: div.querySelector('input[name="blackout_ok"]').checked
-    }));
+  const result = await response.json();
+  console.log("API result:", result);
+  console.log("Valid passes:", result.valid_passes);
 
-    if (riders.length === 0 || resort_plan.length === 0) {
-        alert("Please add at least one rider and one resort.");
-        return;
-    }
-
-    const response = await fetch('https://pass-picker-expert-mode.onrender.com/expert_mode/calculate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ riders, resort_plan })
-    });
-
-    const result = await response.json();
-    document.getElementById('result').textContent = JSON.stringify(result, null, 2);
+  if (typeof renderCards === 'function') {
+    renderCards(result.valid_passes || []);
+  } else {
+    console.error("renderCards is not defined!");
+  }
 });
