@@ -12,7 +12,7 @@ document.getElementById("expertForm").addEventListener("submit", async function(
     blackout_ok: div.querySelector('input[name="blackout_ok"]').checked
   }));
 
-  const response = await fetch("https://pass-picker-expert-mode.onrender.com/", {
+  const response = await fetch("https://pass-picker-expert-mode.onrender.com/expert_mode/calculate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ riders, resorts })
