@@ -12,21 +12,15 @@ document.getElementById("expertForm").addEventListener("submit", async function(
     blackout_ok: div.querySelector('input[name="blackout_ok"]').checked
   }));
 
-  console.log("Sending to API:", { riders, resorts });
-
-  const response = await fetch("https://pass-picker-expert-mode.onrender.com/score_pass", {
+  const response = await fetch("https://pass-picker-expert-mode.onrender.com/", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ riders, resorts })
   });
 
   const result = await response.json();
-  console.log("API result:", result);
-  console.log("Valid passes:", result.valid_passes);
 
   if (typeof renderCards === 'function') {
     renderCards(result.valid_passes || []);
-  } else {
-    console.error("renderCards is not defined!");
   }
 });
