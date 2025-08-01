@@ -23,3 +23,9 @@ form {
 button {
     margin-top: 10px;
 }
+
+.api-toggle {
+    display: block;
+    margin-top: 10px;
+    text-align: left;
+}

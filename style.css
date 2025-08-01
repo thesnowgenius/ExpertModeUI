@@ -62,3 +62,19 @@ h1 {
   background-color: #ffdddd;
   color: #b10000;
 }
+
+.pass-list {
+  margin-bottom: 8px;
+}
+
+.sub-pass {
+  border-top: 1px solid #ddd;
+  padding-top: 6px;
+  margin-top: 6px;
+}
+
+.sub-pass:first-child {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
