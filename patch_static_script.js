@@ -1,3 +1,38 @@
+function addRider() {
+  const container = document.getElementById('riders');
+  const rider = document.createElement('div');
+  rider.className = 'rider';
+  rider.innerHTML =
+    '<input type="number" placeholder="Age" name="age" required>' +
+    '<select name="category">' +
+    '<option value="none">None</option>' +
+    '<option value="military">Military</option>' +
+    '<option value="student">Student</option>' +
+    '<option value="nurse">Nurse</option>' +
+    '</select>';
+  container.appendChild(rider);
+}
+
+function addResort() {
+  const container = document.getElementById('resorts');
+  const resort = document.createElement('div');
+  resort.className = 'resort';
+  resort.innerHTML =
+    '<select name="resort_id" required>' +
+    '<option value="">-- Select resort --</option>' +
+    '<option value="loon">Loon</option>' +
+    '<option value="stratton">Stratton</option>' +
+    '<option value="sunday_river">Sunday River</option>' +
+    '<option value="sugarloaf">Sugarloaf</option>' +
+    '<option value="okemo">Okemo</option>' +
+    '<option value="killington">Killington</option>' +
+    '<option value="cannon">Cannon</option>' +
+    '</select>' +
+    '<input type="number" placeholder="Days" name="days" required>' +
+    '<label><input type="checkbox" name="blackout_ok"> Blackout Days</label>';
+  container.appendChild(resort);
+}
+
 document.getElementById("expertForm").addEventListener("submit", async function(e) {
   e.preventDefault();
 
