@@ -47,6 +47,11 @@ document.getElementById("expertForm").addEventListener("submit", async function(
     blackout_ok: div.querySelector('input[name="blackout_ok"]').checked
   }));
 
+  if (riders.length === 0 || resorts.length === 0) {
+    alert("Please add at least one rider and one resort.");
+    return;
+  }
+
   const response = await fetch("https://pass-picker-expert-mode.onrender.com/expert_mode/calculate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
