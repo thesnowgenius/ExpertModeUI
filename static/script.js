@@ -52,11 +52,14 @@ document.getElementById("expertForm").addEventListener("submit", async function(
     return;
   }
 
-  const response = await fetch("https://pass-picker-expert-mode.onrender.com/expert_mode/calculate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ riders, resort_plan: resorts })
-  });
+  const response = await fetch(
+    "https://pass-picker-expert-mode.onrender.com/score_pass",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ riders, resorts })
+    }
+  );
 
   const result = await response.json();
 
