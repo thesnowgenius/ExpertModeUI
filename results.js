@@ -32,8 +32,24 @@ function sortBy(field) {
   sorted.forEach(pass => {
     const card = document.createElement("div");
     card.className = "pass-card";
+
+    let passesHtml = "";
+    if (Array.isArray(pass.passes) && pass.passes.length > 0) {
+      passesHtml += '<div class="pass-list">';
+      pass.passes.forEach(p => {
+        passesHtml += `
+          <div class="sub-pass">
+            <h3>${p.name}</h3>
+            ${p.cost !== undefined ? `<div class="meta">Cost: $${p.cost}</div>` : ''}
+          </div>`;
+      });
+      passesHtml += '</div>';
+    } else if (pass.name) {
+      passesHtml = `<h2>${pass.name}</h2>`;
+    }
+
     card.innerHTML = `
-      <h2>${pass.name}</h2>
+      ${passesHtml}
       <div class="meta">Total Cost: $${pass.total_cost}</div>
       <div class="meta">Total Days: ${pass.total_days}</div>
       <div class="badge ${pass.blackout_true ? 'blackout' : ''}">

@@ -52,10 +52,18 @@ document.getElementById("expertForm").addEventListener("submit", async function(
     return;
   }
 
-  const response = await fetch("https://pass-picker-expert-mode.onrender.com/expert_mode/calculate", {
+  const useMulti = document.getElementById('multiApiToggle')?.checked;
+  const url = useMulti
+    ? "https://pass-picker-expert-mode.onrender.com/expert_mode/calculate"
+    : "https://pass-picker-expert-mode.onrender.com/score_pass";
+  const payload = useMulti
+    ? { riders, resort_plan: resorts }
+    : { riders, resorts };
+
+  const response = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ riders, resort_plan: resorts })
+    body: JSON.stringify(payload)
   });
 
   const result = await response.json();
