@@ -54,12 +54,11 @@ document.getElementById("expertForm").addEventListener("submit", async function(
 
   const useMulti = document.getElementById('multiApiToggle')?.checked;
   const url = useMulti
-    ?
-      "https://pass-picker-expert-mode-multi.onrender.com/expert_mode/calculate"
-    : "https://pass-picker-expert-mode.onrender.com/score_pass";
+    ? "https://pass-picker-expert-mode-multi.onrender.com/score_pass"
+    : "https://pass-picker-expert-mode.onrender.com/expert_mode/calculate";
   const payload = useMulti
-    ? { riders, resort_plan: resorts }
-    : { riders, resorts };
+    ? { riders, resorts }
+    : { riders, resort_plan: resorts };
 
   const response = await fetch(url, {
     method: "POST",
