@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Expert Mode — Multi & Single</title>
-  <link rel="stylesheet" href="static/styles.css" />
+  <link rel="stylesheet" href="static/style.css" />
 </head>
 <body>
   <header class="page-hero">
@@ -15,16 +15,12 @@
   </header>
 
   <main class="container">
-    <!-- Mode + API Bases -->
+    <!-- API Bases -->
     <section class="card">
       <div class="row">
-        <div class="field">
-          <label for="mode">Mode</label>
-          <div class="segmented" role="tablist" aria-label="API Mode">
-            <button id="mode-multi" class="seg active" data-mode="multi" role="tab" aria-selected="true">Multi</button>
-            <button id="mode-single" class="seg" data-mode="single" role="tab" aria-selected="false">Single</button>
-          </div>
-          <input id="mode" type="hidden" value="multi" />
+        <div class="field inline">
+          <input id="useMulti" type="checkbox" />
+          <label for="useMulti">Use Multi API</label>
         </div>
       </div>
 
@@ -83,6 +79,13 @@
       <h2 class="card-title">Result</h2>
       <div id="status" class="status" role="status" aria-live="polite"></div>
 
+      <div id="sortBar" class="sort-bar" style="display:none;">
+        <button type="button" onclick="sortBy('total_cost')">Sort by Cost</button>
+        <button type="button" onclick="sortBy('total_days')">Sort by Days</button>
+        <button type="button" onclick="sortBy('blackout_true')">Sort by Blackouts</button>
+      </div>
+      <div id="results-container" class="card-grid"></div>
+
       <details open>
         <summary>Request</summary>
         <pre id="req" class="codeblock"></pre>
@@ -100,6 +103,7 @@
   </main>
 
   <!-- Auto-height to parent when embedded -->
+  <script defer src="results.js"></script>
   <script defer src="static/script.js?v=20250813-1"></script>
 </body>
 </html>
