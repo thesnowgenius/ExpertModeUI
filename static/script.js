@@ -1,48 +1,31 @@
-// static/script.js  — drop-in replacement
 (function () {
   const form = document.getElementById('expertForm');
-  const raw = document.getElementById('raw') || { textContent: "" };
-  const errors = document.getElementById('errors') || { textContent: "" };
-  const selectMode = document.getElementById('apiMode');
-  const inputBase = document.getElementById('apiBase');
+  const raw = document.getElementById('raw');
+  const errors = document.getElementById('errors');
 
-  const setRaw = (obj) => raw.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
-  const setError = (msg) => errors.textContent = msg || "";
+  function setRaw(obj) { raw.textContent = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2); }
+  function setError(msg) { errors.textContent = msg || ""; }
 
-  // TODO: adapt to your real form; this demo reads a single row from ids
-  function readUIIntoCommonShape() {
-    const age = Number(document.getElementById('age')?.value ?? 0);
-    const category = (document.getElementById('category')?.value ?? "None");
-    const resortVal = document.getElementById('resort')?.value ?? "loon";
-    const daysVal = Number(document.getElementById('days')?.value ?? 1);
-    const blackout_ok = !!document.getElementById('blackout_ok')?.checked;
-
+  function readUI() {
+    const age = Number(document.getElementById('age').value || 0);
+    const category = (document.getElementById('category').value || "None").trim();
+    const resort = document.getElementById('resort').value || "loon";
+    const days = Number(document.getElementById('days').value || 1);
+    const blackout_ok = !!document.getElementById('blackout_ok').checked;
     return {
       riders: [{ age, category }],
-      resorts: [{ resort_id: resortVal, days: daysVal, blackout_ok }],
+      resorts: [{ resort_id: resort, days, blackout_ok }] // legacy shape; we'll normalize before sending
     };
   }
 
-  function toMultiPayload(common) {
-    // normalize category casing (backend doesn't care, but for consistency)
-    const riders = (common.riders || []).map(r => ({
-      age: Number(r.age),
-      category: (r.category ?? "None")
-        .toString()
-        .trim()
-        .replace(/^none$/i, "None")
-    }));
-
-    // Accept both shapes: resorts[{resort_id,...}] OR resort_days[{resort,...}]
-    let resortDays = common.resort_days;
-    if (!Array.isArray(resortDays) && Array.isArray(common.resorts)) {
-      resortDays = common.resorts.map(r => ({
-        resort: r.resort ?? r.resort_id ?? "",
-        days: Number(r.days ?? 0),
-        blackout_ok: !!r.blackout_ok
-      }));
-    }
-    return { riders, resort_days: resortDays || [] };
+  function toResortDays(common) {
+    if (Array.isArray(common.resort_days)) return common.resort_days;
+    const resorts = Array.isArray(common.resorts) ? common.resorts : [];
+    return resorts.map(r => ({
+      resort: r.resort || r.resort_id || "",
+      days: Number(r.days || 0),
+      blackout_ok: !!r.blackout_ok,
+    })).filter(r => r.resort && r.days > 0);
   }
 
   async function postJson(url, body) {
@@ -51,7 +34,7 @@
       mode: 'cors',
       credentials: 'omit',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      body: JSON.stringify(body)
     });
     const text = await resp.text();
     let data = text;
@@ -67,35 +50,26 @@
     e.preventDefault();
     setError(""); setRaw("");
 
-    const modeAttr = (form.getAttribute('data-api-mode') || '').toLowerCase();
-    const mode = (selectMode && selectMode.value) || modeAttr || 'multi';
-    const baseAttr = form.getAttribute('data-api-base') || '';
-    const base = (inputBase && inputBase.value) || baseAttr || '';
-    const baseClean = base.replace(/\/$/, "");
-    const path = mode === 'multi' ? '/score_multi_pass' : '/score_pass';
-    const url = baseClean + path;
+    const base = (form.getAttribute('data-api-base') || '').replace(/\/$/, "");
+    const url = base + "/score_multi_pass";
 
-    // 1) Read UI → common shape
-    const common = readUIIntoCommonShape();
+    const common = readUI();
+    const payload = {
+      riders: (common.riders || []).map(r => ({ age: Number(r.age), category: String(r.category || "None") })),
+      resort_days: toResortDays(common),
+    };
 
-    // 2) Convert based on mode (this fixes your 422)
-    const body = (mode === 'multi')
-      ? toMultiPayload(common)
-      : { ...common }; // single-pass still uses { riders, resorts: [...] }
-
-    // Quick guardrails
-    if (mode === 'multi' && (!Array.isArray(body.resort_days) || body.resort_days.length === 0)) {
-      setError("No resorts provided. Please add at least one resort.");
+    if (!payload.resort_days.length) {
+      setError("Please add at least one resort with days > 0.");
       return;
     }
 
     try {
-      setRaw({ url, body });
-      const json = await postJson(url, body);
+      setRaw({ url, payload });
+      const json = await postJson(url, payload);
       setRaw(json);
-      // renderCards(json); // if you have a renderer
     } catch (err) {
-      setError('Request failed: ' + (err?.message || String(err)));
+      setError('Request failed: ' + (err && err.message ? err.message : String(err)));
       console.error(err);
     }
   });

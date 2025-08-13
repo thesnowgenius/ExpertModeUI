@@ -1,71 +1,71 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Snow Genius Expert Mode</title>
-    <link rel="stylesheet" href="static/style.css">
-</head>
-<body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Snow Genius — Expert Mode</title>
+    <meta name="description" content="Expert Mode — Multi-pass scorer" />
+    <link rel="preconnect" href="https://pass-picker-expert-mode-multi.onrender.com" />
+    <style>
+      :root { color-scheme: light dark; }
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 24px; line-height: 1.45; }
+      .container { max-width: 960px; margin: 0 auto; }
+      .card { border: 1px solid #ccc; border-radius: 12px; padding: 16px; margin: 12px 0; }
+      label { display: block; margin: 8px 0 4px; }
+      input, select, button, textarea { font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid #bbb; width: 100%; box-sizing: border-box; }
+      button { cursor: pointer; width: auto; }
+      .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .error { color: #b00020; font-weight: 600; white-space: pre-wrap; }
+      pre { background: rgba(127,127,127,0.12); padding: 12px; border-radius: 8px; overflow: auto; }
+      .muted { opacity: 0.8; }
+    </style>
+  </head>
+  <body>
     <div class="container">
-        <img src="static/logo.png" alt="Logo" class="logo">
-        <h1>Snow Genius</h1>
-        <h2>EXPERT MODE</h2>
-        <p>Find the lowest-cost ski pass that meets your exact plan.</p>
+      <h1>Expert Mode — Multi</h1>
+      <p class="muted">Calls the Multi API with CORS-friendly settings.</p>
 
-        <form id="expertForm">
-            <h3>Riders</h3>
-            <div id="riders">
-                <div class="rider">
-                    <input type="number" placeholder="Age" name="age" required>
-                    <select name="category">
-                        <option value="none">None</option>
-                        <option value="military">Military</option>
-                        <option value="student">Student</option>
-                        <option value="nurse">Nurse</option>
-                    </select>
-                </div>
-            </div>
-            <button type="button" onclick="addRider()">+ Add Rider</button>
+      <form id="expertForm"
+            data-api-base="https://pass-picker-expert-mode-multi.onrender.com"
+            class="card">
 
-            <h3>Resorts</h3>
-            <div id="resorts">
-                <div class="resort">
-                    <select name="resort_id" required>
-                        <option value="">-- Select resort --</option>
-                        <option value="loon">Loon</option>
-                        <option value="stratton">Stratton</option>
-                        <option value="sunday_river">Sunday River</option>
-                        <option value="sugarloaf">Sugarloaf</option>
-                        <option value="okemo">Okemo</option>
-                        <option value="killington">Killington</option>
-                        <option value="cannon">Cannon</option>
-                    </select>
-                    <input type="number" placeholder="Days" name="days" required>
-                    <label><input type="checkbox" name="blackout_ok"> Blackout Days</label>
-                </div>
-            </div>
-            <button type="button" onclick="addResort()">+ Add Resort</button>
-
-            <label class="api-toggle">
-                <input type="checkbox" id="multiApiToggle" checked>
-                Use multi-pass API
-            </label>
-
-            <button type="submit" id="submitBtn">Submit</button>
-        </form>
-
-        <div class="sort-bar" style="display:none;" id="sortBar">
-            Sort by:
-            <button type="button" onclick="sortBy('total_cost')">Cost</button>
-            <button type="button" onclick="sortBy('total_days')">Days</button>
-            <button type="button" onclick="sortBy('blackout_true')">Blackout</button>
+        <div class="row">
+          <div>
+            <label>Rider Age</label>
+            <input id="age" type="number" min="0" value="39" required />
+          </div>
+          <div>
+            <label>Category</label>
+            <select id="category">
+              <option value="None" selected>None</option>
+              <option value="Student">Student</option>
+              <option value="Military">Military</option>
+              <option value="Nurse">Nurse</option>
+            </select>
+          </div>
         </div>
 
-        <div id="results-container" class="card-grid"></div>
+        <div class="row">
+          <div>
+            <label>Resort (id or name)</label>
+            <input id="resort" placeholder="loon" value="loon" />
+          </div>
+          <div>
+            <label>Days</label>
+            <input id="days" type="number" min="1" value="2" required />
+          </div>
+        </div>
+
+        <label><input id="blackout_ok" type="checkbox" /> Allow Blackout</label>
+
+        <p><button type="submit">Submit</button></p>
+      </form>
+
+      <div id="errors" class="error"></div>
+      <h3>Raw Response</h3>
+      <pre id="raw"></pre>
     </div>
 
     <script src="static/script.js"></script>
-    <script src="results.js"></script>
-    <script src="autoResize.js"></script>
-</body>
+  </body>
 </html>
