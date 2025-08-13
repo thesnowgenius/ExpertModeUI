@@ -14,6 +14,21 @@
   };
   const setJSON = (node, obj) => node.textContent = JSON.stringify(obj, null, 2);
 
+  // ---------- Auto-height to parent (Squarespace embed)
+  function postHeight() {
+    const h = Math.max(
+      document.documentElement.scrollHeight,
+      document.body.scrollHeight
+    );
+    // allow both www and apex; customize if you only use one
+    try { parent.postMessage({ type: 'setHeight', height: h }, 'https://www.snow-genius.com'); } catch {}
+    try { parent.postMessage({ type: 'setHeight', height: h }, 'https://snow-genius.com'); } catch {}
+  }
+  const postHeightSoon = () => requestAnimationFrame(postHeight);
+  window.addEventListener('load', postHeightSoon);
+  window.addEventListener('resize', postHeightSoon);
+  window.sendHeight = postHeightSoon;
+
   // ---------- Elements
   const multiApi = $('#multiApi');
   const singleApi = $('#singleApi');
@@ -215,19 +230,4 @@
   resortsWrap.append(resortRow('loon', 7, false));
   useMultiBox.checked = false;
   renderCards([]);
-
-  // ---------- Auto-height to parent (Squarespace embed)
-  function postHeight() {
-    const h = Math.max(
-      document.documentElement.scrollHeight,
-      document.body.scrollHeight
-    );
-    // allow both www and apex; customize if you only use one
-    try { parent.postMessage({ type: 'setHeight', height: h }, 'https://www.snow-genius.com'); } catch {}
-    try { parent.postMessage({ type: 'setHeight', height: h }, 'https://snow-genius.com'); } catch {}
-  }
-  const postHeightSoon = () => requestAnimationFrame(postHeight);
-  window.addEventListener('load', postHeightSoon);
-  window.addEventListener('resize', postHeightSoon);
-  window.sendHeight = postHeightSoon;
 })();
