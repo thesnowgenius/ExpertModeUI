@@ -15,11 +15,9 @@
   const setJSON = (node, obj) => node.textContent = JSON.stringify(obj, null, 2);
 
   // ---------- Elements
-  const modeHidden = $('#mode');
-  const segMulti = $('#mode-multi');
-  const segSingle = $('#mode-single');
   const multiApi = $('#multiApi');
   const singleApi = $('#singleApi');
+  const useMultiBox = $('#useMulti');
 
   const ridersWrap = $('#riders');
   const resortsWrap = $('#resorts');
@@ -36,22 +34,6 @@
   const statusEl = $('#status');
   const reqEl = $('#req');
   const resEl = $('#res');
-
-  // ---------- State
-  let mode = 'multi'; // 'multi' | 'single'
-
-  // ---------- Mode switch
-  function setMode(next) {
-    mode = next;
-    modeHidden.value = next;
-    segMulti.classList.toggle('active', next === 'multi');
-    segSingle.classList.toggle('active', next === 'single');
-    segMulti.setAttribute('aria-selected', String(next === 'multi'));
-    segSingle.setAttribute('aria-selected', String(next === 'single'));
-    postHeightSoon();
-  }
-  segMulti.addEventListener('click', () => setMode('multi'));
-  segSingle.addEventListener('click', () => setMode('single'));
 
   // ---------- Builders
   function riderRow(age = 39, category = 'None') {
@@ -121,10 +103,11 @@
   btnReset.addEventListener('click', () => {
     ridersWrap.innerHTML = '';
     resortsWrap.innerHTML = '';
-    setMode('multi');
+    useMultiBox.checked = false;
     status('');
     setJSON(reqEl, {});
     setJSON(resEl, {});
+    renderCards([]);
     postHeightSoon();
   });
 
@@ -205,8 +188,9 @@
     const multiPayload = { riders, resort_days: resorts };
     const singlePayload = { riders, resort_plan: resorts };
 
-    const url = mode === 'multi' ? (multiApi.value || '').trim() : (singleApi.value || '').trim();
-    const body = mode === 'multi' ? multiPayload : singlePayload;
+    const useMulti = useMultiBox.checked;
+    const url = useMulti ? (multiApi.value || '').trim() : (singleApi.value || '').trim();
+    const body = useMulti ? multiPayload : singlePayload;
 
     setJSON(reqEl, { url, body });
     status('Submitting…');
@@ -214,10 +198,13 @@
     try {
       const json = await postJson(url, body);
       setJSON(resEl, json);
+      const passes = json.best_combo_passes || json.best_combos || json.valid_passes || (Array.isArray(json) ? json : []);
+      renderCards(Array.isArray(passes) ? passes : []);
       status('OK', 'ok');
     } catch (e) {
       status(`Error: ${(e && e.message) || e}`, 'err');
       setJSON(resEl, { error: String(e) });
+      renderCards([]);
     } finally {
       postHeightSoon();
     }
@@ -226,7 +213,8 @@
   // ---------- Initial rows
   ridersWrap.append(riderRow(39, 'None'));
   resortsWrap.append(resortRow('loon', 7, false));
-  setMode('multi');
+  useMultiBox.checked = false;
+  renderCards([]);
 
   // ---------- Auto-height to parent (Squarespace embed)
   function postHeight() {
@@ -241,4 +229,5 @@
   const postHeightSoon = () => requestAnimationFrame(postHeight);
   window.addEventListener('load', postHeightSoon);
   window.addEventListener('resize', postHeightSoon);
+  window.sendHeight = postHeightSoon;
 })();
