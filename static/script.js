@@ -2,7 +2,7 @@
    - Clean UI (no URL bars)
    - Toggle Multi/Single API
    - Riders + Resorts add/clear, with age & blackout_ok
-   - Strong validation & input sanitization (prevents NoneType.strip server errors)
+   - Strong validation & input sanitization
    - Results filter + sort
    - Auto-height postMessage for Squarespace embeds
 */
@@ -139,13 +139,14 @@
     postHeightSoon();
   });
 
-  // ---- Read + validation (prevents NoneType.strip on server)
+  // ---- Read + validation
   function readRiders() {
     return $$('.riderline').map(line => {
       const [ageField, catField] = $$('.field', line);
       const age = toInt($('input', ageField).value, 0);
       let category = toStr($('select', catField).value, 'None').trim();
       if (!category) category = 'None';
+      // UI keeps category for Multi compatibility; Single will map to {quantity, age}
       return { age, category };
     });
   }
@@ -198,7 +199,7 @@
   function extractRows(json) {
     if (Array.isArray(json)) return json;
     if (!json || typeof json !== 'object') return [];
-    const keys = ['results','solutions','options','passes','items','data','choices'];
+    const keys = ['results','solutions','options','passes','items','data','choices','valid_passes'];
     for (const k of keys) if (Array.isArray(json[k])) return json[k];
     return [];
   }
@@ -280,15 +281,21 @@
     riders.forEach(r => { r.category = toStr(r.category,'None').trim() || 'None'; });
     resorts.forEach(p => { p.resort = toStr(p.resort,'').trim().toLowerCase(); p.blackout_ok = !!p.blackout_ok; });
 
-    // Payloads (resort model restored per STABLE FORM)
-    const multiPayload = { riders, resort_days: resorts };
+    // Build payloads
+    const multiPayload = { 
+      riders, 
+      resort_days: resorts 
+    };
+
+    // SINGLE: align to server contract (Postman example)
+    // - riders: [{ quantity: 1, age }]
+    // - resort_plan: [{ resort_name, days, blackout_ok }]
     const singlePayload = {
-      riders,
+      riders: riders.map(r => ({ quantity: 1, age: r.age })), // drop category for request
       resort_plan: resorts.map(p => ({
-        resort: p.resort,
+        resort_name: p.resort,           // <-- key change
         days: p.days,
-        blackout_ok: p.blackout_ok,
-        blackout: p.blackout_ok // mirror for compatibility
+        blackout_ok: p.blackout_ok       // <-- no extra "blackout"
       }))
     };
 
