@@ -3,47 +3,34 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Expert Mode — Multi & Single</title>
+  <title>Expert Mode</title>
   <link rel="stylesheet" href="static/styles.css" />
 </head>
 <body>
-  <header class="page-hero">
-    <div class="logo-row">
-      <h1>Expert Mode — Multi</h1>
-      <p class="sub">Calls the Multi or Single API with CORS‑friendly settings.</p>
+  <header class="hero">
+    <div class="wrap">
+      <h1>Expert Mode</h1>
+      <p class="sub">Clean, stable form. Multi & Single API support.</p>
     </div>
   </header>
 
-  <main class="container">
-    <!-- API Bases -->
+  <main class="wrap">
+    <!-- Mode -->
     <section class="card">
-      <div class="row">
-        <div class="field inline">
-          <input id="useMulti" type="checkbox" />
-          <label for="useMulti">Use Multi API</label>
+      <div class="field">
+        <label>Mode</label>
+        <div class="segmented" role="tablist" aria-label="API Mode">
+          <button id="mode-multi" class="seg active" data-mode="multi" role="tab" aria-selected="true">Multi</button>
+          <button id="mode-single" class="seg" data-mode="single" role="tab" aria-selected="false">Single</button>
         </div>
       </div>
-
-      <div class="grid-2">
-        <div class="field">
-          <label for="multiApi">Multi API URL</label>
-          <input id="multiApi" type="url"
-                 value="https://pass-picker-expert-mode-multi.onrender.com/score_multi_pass"
-                 spellcheck="false" />
-        </div>
-        <div class="field">
-          <label for="singleApi">Single API URL</label>
-          <input id="singleApi" type="url"
-                 value="https://pass-picker-expert-mode.onrender.com/expert_mode/calculate"
-                 spellcheck="false" />
-        </div>
-      </div>
+      <input id="mode" type="hidden" value="multi" />
     </section>
 
     <!-- Riders -->
     <section class="card">
       <div class="row header-row">
-        <h2 class="card-title">Riders</h2>
+        <h2>Riders</h2>
         <div class="row gap">
           <button id="addRider" class="btn">+ Add Rider</button>
           <button id="clearRiders" class="btn btn-ghost">Clear</button>
@@ -55,7 +42,7 @@
     <!-- Resorts -->
     <section class="card">
       <div class="row header-row">
-        <h2 class="card-title">Resort Plan</h2>
+        <h2>Resort Plan</h2>
         <div class="row gap">
           <button id="addResort" class="btn">+ Add Resort</button>
           <button id="clearResorts" class="btn btn-ghost">Clear</button>
@@ -71,29 +58,38 @@
         <button id="loadExample" class="btn btn-ghost">Load Example</button>
         <button id="resetAll" class="btn btn-ghost">Reset</button>
       </div>
-      <p id="hint" class="muted">Tip: You can edit the API URLs above. We’ll POST JSON with CORS‑safe headers.</p>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
     </section>
 
     <!-- Results -->
     <section class="card">
-      <h2 class="card-title">Result</h2>
-      <div id="status" class="status" role="status" aria-live="polite"></div>
-
-      <div id="sortBar" class="sort-bar" style="display:none;">
-        <button type="button" onclick="sortBy('total_cost')">Sort by Cost</button>
-        <button type="button" onclick="sortBy('total_days')">Sort by Days</button>
-        <button type="button" onclick="sortBy('blackout_true')">Sort by Blackouts</button>
+      <div class="row header-row">
+        <h2>Results</h2>
+        <div class="row gap">
+          <div class="field">
+            <label for="filterText">Filter</label>
+            <input id="filterText" type="text" placeholder="Type to filter rows…" />
+          </div>
+          <div class="field">
+            <label for="sortKey">Sort by</label>
+            <select id="sortKey"></select>
+          </div>
+          <div class="field">
+            <label>&nbsp;</label>
+            <button id="sortDir" class="btn btn-ghost">Asc</button>
+          </div>
+        </div>
       </div>
-      <div id="results-container" class="card-grid"></div>
+      <div id="resultsTable" class="table-wrap"></div>
 
-      <details open>
-        <summary>Request</summary>
-        <pre id="req" class="codeblock"></pre>
+      <details>
+        <summary>Raw Response</summary>
+        <pre id="raw" class="codeblock"></pre>
       </details>
 
-      <details open>
-        <summary>Response</summary>
-        <pre id="res" class="codeblock"></pre>
+      <details>
+        <summary>Request</summary>
+        <pre id="req" class="codeblock"></pre>
       </details>
     </section>
 
@@ -102,8 +98,6 @@
     </footer>
   </main>
 
-  <!-- Auto-height to parent when embedded -->
-  <script defer src="results.js"></script>
-  <script defer src="static/script.js?v=20250813-1"></script>
+  <script defer src="static/app.js?v=20250813-clean"></script>
 </body>
 </html>
