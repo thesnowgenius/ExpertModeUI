@@ -1,95 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Snow Genius – Expert Mode</title>
-  <link rel="stylesheet" href="static/style.css">
+  <meta charset="UTF-8" />
+  <title>Snow Genius — Expert Mode</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="static/style.css" />
 </head>
 <body>
   <div class="wrap">
     <header class="hero">
-      <h1>Expert Mode</h1>
-      <p class="sub">Clean, stable form. Toggle Multi/Single APIs. Filter & sort results.</p>
+      <img src="static/logo.png" alt="Snow Genius" class="logo" />
+      <h1>Snow Genius</h1>
+      <p class="sub">Expert Mode — find the lowest-cost pass or combo that matches your exact plan.</p>
     </header>
 
+    <!-- API Mode Toggle (segmented) -->
     <div class="card">
-      <div class="row header-row">
-        <div class="segmented" role="tablist" aria-label="API mode">
-          <button id="segMulti" class="seg active" type="button">Multi</button>
-          <button id="segSingle" class="seg" type="button">Single</button>
-        </div>
-        <div class="inline small">
-          <span class="status" id="statusLabel">Idle</span>
-        </div>
+      <div class="segmented" id="apiMode">
+        <button type="button" class="seg active" data-mode="multi">Multi</button>
+        <button type="button" class="seg" data-mode="single">Single</button>
       </div>
-
-      <div class="stack small">
-        <div class="inline gap">
-          <span class="small">Multi API docs</span>
-          <span class="small">•</span>
-          <span class="small">Single API docs</span>
-        </div>
+      <div class="small pad-top muted">
+        Multi → <code>https://pass-picker-expert-mode-multi.onrender.com/score_multi_pass</code><br />
+        Single → <code>https://pass-picker-expert-mode.onrender.com/expert_mode/calculate</code>
       </div>
     </div>
 
-    <form id="expertForm" class="card stack">
-      <h3>Riders</h3>
-      <div id="riders" class="stack"></div>
-      <div class="inline gap">
-        <button type="button" class="btn" id="addRiderBtn">+ Add Rider</button>
-        <button type="button" class="btn btn-ghost" id="clearRidersBtn">Clear</button>
-      </div>
-
-      <h3>Resort Plan</h3>
-      <div id="resorts" class="stack"></div>
-      <div class="inline gap">
-        <button type="button" class="btn" id="addResortBtn">+ Add Resort</button>
-        <button type="button" class="btn btn-ghost" id="clearResortsBtn">Clear</button>
-      </div>
-
-      <div class="row">
-        <button type="submit" class="btn btn-primary">Submit</button>
+    <form id="expertForm" class="card">
+      <!-- Riders -->
+      <div class="header-row row">
+        <h2 class="m0">Riders</h2>
         <div class="inline gap">
-          <button type="button" class="btn" id="loadExampleBtn">Load Example</button>
-          <button type="reset" class="btn">Reset</button>
+          <button type="button" class="btn" id="addRiderBtn">+ Add Rider</button>
         </div>
       </div>
+      <div id="riders" class="stack"></div>
 
-      <details class="codeblock">
-        <summary>Raw Request</summary>
-        <pre id="rawRequest"></pre>
-      </details>
-      <details class="codeblock">
-        <summary>Raw Response</summary>
-        <pre id="rawResponse"></pre>
-      </details>
+      <!-- Resorts -->
+      <div class="header-row row pad-top">
+        <h2 class="m0">Resorts</h2>
+        <div class="inline gap">
+          <button type="button" class="btn" id="addResortBtn">+ Add Resort</button>
+          <button type="button" class="btn btn-ghost" id="clearAllBtn">Clear</button>
+        </div>
+      </div>
+      <div id="resorts" class="stack"></div>
+
+      <!-- Status + Submit -->
+      <div class="row header-row">
+        <div class="status" id="status">Idle</div>
+        <button type="submit" class="btn btn-primary" id="submitBtn">Submit</button>
+      </div>
     </form>
 
+    <!-- Raw panes -->
     <div class="card">
-      <div class="row header-row">
-        <h3 style="margin:0">Results</h3>
-        <div class="inline gap">
-          <input class="field" id="filterInput" type="text" placeholder="Type to filter rows..." />
-          <select id="sortKey">
-            <option value="price">Price</option>
-            <option value="name">Name</option>
-          </select>
-          <select id="sortDir">
-            <option value="asc">Asc</option>
-            <option value="desc">Desc</option>
-          </select>
-        </div>
+      <details>
+        <summary>Raw Request</summary>
+        <pre id="rawRequest" class="codeblock">{}</pre>
+      </details>
+      <details class="pad-top">
+        <summary>Raw Response</summary>
+        <pre id="rawResponse" class="codeblock">{}</pre>
+      </details>
+    </div>
+
+    <!-- Results -->
+    <div class="card">
+      <div class="header-row row">
+        <h2 class="m0">Results</h2>
+        <div id="sortBar" class="small muted" style="display:none">Sorted by cost</div>
       </div>
-      <div id="results" class="table-wrap">
-        <table>
-          <thead><tr><th>Pass</th><th>Variant</th><th>Price</th></tr></thead>
-          <tbody id="resultsBody"></tbody>
-        </table>
+      <div id="results-container" class="table-wrap">
+        <!-- filled by results.js -->
       </div>
     </div>
+
+    <footer class="footer small">© Snow Genius</footer>
   </div>
 
   <script src="static/script.js"></script>
+  <script src="results.js"></script>
+  <script src="autoResize.js"></script>
 </body>
 </html>
