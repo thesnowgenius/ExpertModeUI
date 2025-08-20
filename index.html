@@ -1,66 +1,95 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Snow Genius Expert Mode</title>
-    <link rel="stylesheet" href="static/style.css">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snow Genius – Expert Mode</title>
+  <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
-    <div class="container">
-        <img src="static/logo.png" alt="Logo" class="logo">
-        <h1>Snow Genius</h1>
-        <h2>EXPERT MODE</h2>
-        <p>Find the lowest-cost pass or combo that meets your exact plan.</p>
+  <div class="wrap">
+    <header class="hero">
+      <h1>Expert Mode</h1>
+      <p class="sub">Clean, stable form. Toggle Multi/Single APIs. Filter & sort results.</p>
+    </header>
 
-        <form id="expertForm">
-            <h3>Riders</h3>
-            <div id="riders">
-                <div class="rider">
-                    <input type="number" placeholder="Age" name="age" required>
-                    <select name="category">
-                        <option value="None">None</option>
-                        <option value="Military">Military</option>
-                        <option value="Student">Student</option>
-                        <option value="Nurse">Nurse</option>
-                    </select>
-                    <button type="button" class="remove-btn" onclick="this.closest('.rider').remove()">Remove</button>
-                </div>
-            </div>
-            <button type="button" onclick="addRider()">+ Add Rider</button>
-
-            <h3>Resorts</h3>
-            <div id="resorts">
-                <div class="resort">
-                    <div class="resort-left"><!-- typeahead injected here --></div>
-                    <div class="resort-right">
-                        <input type="number" placeholder="Days" name="days" required>
-                        <label class="blk"><input type="checkbox" name="blackout_ok"> Blackout Days OK</label>
-                        <button type="button" class="remove-btn" onclick="this.closest('.resort').remove()">Remove</button>
-                    </div>
-                </div>
-            </div>
-            <button type="button" onclick="addResort()">+ Add Resort</button>
-
-            <label class="api-toggle">
-                <input type="checkbox" id="multiApiToggle" checked>
-                Use multi-pass API
-            </label>
-
-            <button type="submit" id="submitBtn">Submit</button>
-        </form>
-
-        <div class="sort-bar" style="display:none;" id="sortBar">
-            Sort by:
-            <button type="button" onclick="sortBy('total_cost')">Cost</button>
-            <button type="button" onclick="sortBy('total_days')">Days</button>
-            <button type="button" onclick="sortBy('blackout_true')">Blackout</button>
+    <div class="card">
+      <div class="row header-row">
+        <div class="segmented" role="tablist" aria-label="API mode">
+          <button id="segMulti" class="seg active" type="button">Multi</button>
+          <button id="segSingle" class="seg" type="button">Single</button>
         </div>
+        <div class="inline small">
+          <span class="status" id="statusLabel">Idle</span>
+        </div>
+      </div>
 
-        <div id="results-container" class="card-grid"></div>
+      <div class="stack small">
+        <div class="inline gap">
+          <span class="small">Multi API docs</span>
+          <span class="small">•</span>
+          <span class="small">Single API docs</span>
+        </div>
+      </div>
     </div>
 
-    <script src="static/script.js"></script>
-    <script src="results.js"></script>
-    <script src="autoResize.js"></script>
+    <form id="expertForm" class="card stack">
+      <h3>Riders</h3>
+      <div id="riders" class="stack"></div>
+      <div class="inline gap">
+        <button type="button" class="btn" id="addRiderBtn">+ Add Rider</button>
+        <button type="button" class="btn btn-ghost" id="clearRidersBtn">Clear</button>
+      </div>
+
+      <h3>Resort Plan</h3>
+      <div id="resorts" class="stack"></div>
+      <div class="inline gap">
+        <button type="button" class="btn" id="addResortBtn">+ Add Resort</button>
+        <button type="button" class="btn btn-ghost" id="clearResortsBtn">Clear</button>
+      </div>
+
+      <div class="row">
+        <button type="submit" class="btn btn-primary">Submit</button>
+        <div class="inline gap">
+          <button type="button" class="btn" id="loadExampleBtn">Load Example</button>
+          <button type="reset" class="btn">Reset</button>
+        </div>
+      </div>
+
+      <details class="codeblock">
+        <summary>Raw Request</summary>
+        <pre id="rawRequest"></pre>
+      </details>
+      <details class="codeblock">
+        <summary>Raw Response</summary>
+        <pre id="rawResponse"></pre>
+      </details>
+    </form>
+
+    <div class="card">
+      <div class="row header-row">
+        <h3 style="margin:0">Results</h3>
+        <div class="inline gap">
+          <input class="field" id="filterInput" type="text" placeholder="Type to filter rows..." />
+          <select id="sortKey">
+            <option value="price">Price</option>
+            <option value="name">Name</option>
+          </select>
+          <select id="sortDir">
+            <option value="asc">Asc</option>
+            <option value="desc">Desc</option>
+          </select>
+        </div>
+      </div>
+      <div id="results" class="table-wrap">
+        <table>
+          <thead><tr><th>Pass</th><th>Variant</th><th>Price</th></tr></thead>
+          <tbody id="resultsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script src="static/script.js"></script>
 </body>
 </html>
