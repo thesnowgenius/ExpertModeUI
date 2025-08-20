@@ -1,63 +1,63 @@
-let currentResults = [];
-let currentSort = 'total_cost';
+/* Results renderer that works for both API shapes (single & multi) */
 
 function renderCards(data) {
-  const container = document.getElementById("results-container");
-  const sortBar = document.getElementById("sortBar");
+  const mount = document.getElementById('results-container');
+  if (!mount) return;
 
-  if (!data || data.length === 0) {
-    container.innerHTML = "<p>No valid passes found.</p>";
-    sortBar.style.display = "none";
-    sendHeight();
+  // Clear
+  mount.innerHTML = '';
+
+  // Accept either {valid_passes: [...]} or an object like {best_combo: [...], total_cost: N}
+  let rows = [];
+
+  if (Array.isArray(data)) {
+    rows = data;
+  } else if (Array.isArray(data?.valid_passes)) {
+    rows = data.valid_passes;
+  } else if (data && (data.best_combo || data.total_cost)) {
+    // Multi-pass minimal view
+    const combo = (data.best_combo || []).join(' + ') || '—';
+    const total = (typeof data.total_cost === 'number') ? `$${data.total_cost}` : '—';
+    const html = `
+      <table>
+        <thead><tr><th>Best Combo</th><th>Total Cost</th></tr></thead>
+        <tbody><tr><td>${combo}</td><td>${total}</td></tr></tbody>
+      </table>`;
+    mount.innerHTML = html;
+    document.getElementById('sortBar')?.style?.setProperty('display','');
+    return;
+  } else if (data) {
+    // Fallback generic JSON
+    mount.innerHTML = `<pre class="codeblock">${escapeHtml(JSON.stringify(data, null, 2))}</pre>`;
+    document.getElementById('sortBar')?.style?.setProperty('display','none');
+    return;
+  } else {
+    document.getElementById('sortBar')?.style?.setProperty('display','none');
     return;
   }
 
-  currentResults = data;
-  sortBar.style.display = "block";
-  sortBy(currentSort);
+  if (!rows.length) {
+    mount.innerHTML = '<div class="small muted">No results.</div>';
+    document.getElementById('sortBar')?.style?.setProperty('display','none');
+    return;
+  }
+
+  // If it's an array of passes, render table
+  const headers = new Set();
+  rows.forEach(r => Object.keys(r).forEach(k => headers.add(k)));
+  const cols = Array.from(headers);
+
+  let thead = '<tr>' + cols.map(c=>`<th>${escapeHtml(c)}</th>`).join('') + '</tr>';
+  let tbody = rows.map(r => {
+    return '<tr>' + cols.map(c => `<td>${escapeHtml(String(r[c] ?? ''))}</td>`).join('') + '</tr>';
+  }).join('');
+
+  mount.innerHTML = `<table><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+  document.getElementById('sortBar')?.style?.setProperty('display','');
 }
 
-function sortBy(field) {
-  currentSort = field;
-  const sorted = [...currentResults].sort((a, b) => {
-    if (typeof a[field] === "boolean") {
-      return a[field] === b[field] ? 0 : a[field] ? 1 : -1;
-    }
-    return a[field] - b[field];
-  });
-
-  const container = document.getElementById("results-container");
-  container.innerHTML = "";
-
-  sorted.forEach(pass => {
-    const card = document.createElement("div");
-    card.className = "pass-card";
-
-    let passesHtml = "";
-    if (Array.isArray(pass.passes) && pass.passes.length > 0) {
-      passesHtml += '<div class="pass-list">';
-      pass.passes.forEach(p => {
-        passesHtml += `
-          <div class="sub-pass">
-            <h3>${p.name}</h3>
-            ${p.cost !== undefined ? `<div class="meta">Cost: $${p.cost}</div>` : ''}
-          </div>`;
-      });
-      passesHtml += '</div>';
-    } else if (pass.name) {
-      passesHtml = `<h2>${pass.name}</h2>`;
-    }
-
-    card.innerHTML = `
-      ${passesHtml}
-      <div class="meta">Total Cost: $${pass.total_cost}</div>
-      <div class="meta">Total Days: ${pass.total_days}</div>
-      <div class="badge ${pass.blackout_true ? 'blackout' : ''}">
-        ${pass.blackout_true ? 'Has Blackouts' : 'No Blackouts'}
-      </div>
-    `;
-    container.appendChild(card);
-  });
-
-  sendHeight();
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, m =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])
+  );
 }
