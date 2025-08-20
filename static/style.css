@@ -54,7 +54,7 @@ body{
 .seg{padding:8px 14px; border:none; background:transparent; color:var(--muted); cursor:pointer; border-radius:10px}
 .seg.active{background:var(--brand); color:#fff; font-weight:600}
 
-/* Rows */
+/* Rows (no per-row labels) */
 .rider{
   display:grid; grid-template-columns:.6fr .9fr auto; gap:8px; align-items:end;
 }
