@@ -34,6 +34,14 @@
           <button type="button" class="btn" id="addRiderBtn">+ Add Rider</button>
         </div>
       </div>
+
+      <!-- Riders column header (static) -->
+      <div class="grid riders-head">
+        <div class="th">Age</div>
+        <div class="th">Category</div>
+        <div class="th"></div>
+      </div>
+
       <div id="riders" class="stack"></div>
 
       <!-- Resorts -->
@@ -44,6 +52,14 @@
           <button type="button" class="btn btn-ghost" id="clearAllBtn">Clear</button>
         </div>
       </div>
+
+      <!-- Resorts column header (static) -->
+      <div class="grid resorts-head">
+        <div class="th">Resort</div>
+        <div class="th">Days</div>
+        <div class="th">Blackout OK</div>
+      </div>
+
       <div id="resorts" class="stack"></div>
 
       <!-- Status + Submit -->
@@ -71,9 +87,7 @@
         <h2 class="m0">Results</h2>
         <div id="sortBar" class="small muted" style="display:none">Sorted by cost</div>
       </div>
-      <div id="results-container" class="table-wrap">
-        <!-- filled by results.js -->
-      </div>
+      <div id="results-container" class="table-wrap"></div>
     </div>
 
     <footer class="footer small">© Snow Genius</footer>
