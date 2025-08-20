@@ -1,9 +1,6 @@
-
-/* ---------- Typeahead-backed resort picker (Snow Genius Expert Mode) ---------- */
-
+// -------- Resort Typeahead helpers --------
 let RESORTS = [];
 let RESORTS_LOADED = false;
-
 async function loadResortsOnce() {
   if (RESORTS_LOADED) return RESORTS;
   const resp = await fetch('static/resorts.json', { cache: 'no-store' });
@@ -11,25 +8,18 @@ async function loadResortsOnce() {
   RESORTS_LOADED = true;
   return RESORTS;
 }
-
 function formatResortLabel(r) {
   return r.state ? `${r.resort_name}, ${r.state}` : r.resort_name;
 }
-
 function normalizeQuery(q) {
-  return q
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[^\w\s-]/g, '');
+  return q.toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g,'');
 }
-
 function resortMatches(r, qNorm) {
-  const name = normalizeQuery(r.resort_name || '');
-  const id   = normalizeQuery(r.resort_id || '');
-  const st   = normalizeQuery(r.state || '');
-  return name.includes(qNorm) || id.includes(qNorm) || st.includes(qNorm);
+  const name = normalizeQuery(r.resort_name||'');
+  const id   = normalizeQuery(r.resort_id||'');
+  const st   = normalizeQuery(r.state||'');
+  return name.includes(qNorm)||id.includes(qNorm)||st.includes(qNorm);
 }
-
 function createTypeahead(container) {
   const wrap = document.createElement('div');
   wrap.className = 'ta-wrap';
@@ -50,95 +40,50 @@ function createTypeahead(container) {
   list.hidden = true;
 
   let cursor = -1;
-  let currentResults = [];
+  let current = [];
 
-  function clearList() {
-    list.innerHTML = '';
-    list.hidden = true;
-    cursor = -1;
-    currentResults = [];
-  }
-
-  function renderList(items) {
-    list.innerHTML = '';
-    currentResults = items.slice(0, 20);
-    currentResults.forEach((r, idx) => {
+  function clearList(){ list.innerHTML=''; list.hidden=true; cursor=-1; current=[]; }
+  function choose(r){ input.value = formatResortLabel(r); hidden.value = r.resort_id; clearList(); }
+  function render(items){
+    list.innerHTML=''; current = items.slice(0,20);
+    current.forEach((r,i)=>{
       const li = document.createElement('li');
-      li.className = 'ta-item';
-      li.textContent = formatResortLabel(r);
-      li.dataset.id = r.resort_id;
-      li.addEventListener('mousedown', (e) => {
-        e.preventDefault();
-        choose(r);
-      });
+      li.className='ta-item'; li.textContent=formatResortLabel(r); li.dataset.id=r.resort_id;
+      li.addEventListener('mousedown', e=>{ e.preventDefault(); choose(r); });
       list.appendChild(li);
     });
-    list.hidden = currentResults.length === 0;
-    cursor = -1;
+    list.hidden = current.length===0;
+    cursor=-1;
   }
-
-  function choose(r) {
-    input.value = formatResortLabel(r);
-    hidden.value = r.resort_id;
-    clearList();
-  }
-
-  input.addEventListener('input', async () => {
-    hidden.value = '';
-    const q = input.value.trim();
-    if (q.length < 3) {
-      clearList();
-      return;
-    }
+  input.addEventListener('input', async ()=>{
+    hidden.value='';
+    const q=input.value.trim();
+    if(q.length<3){ clearList(); return; }
     await loadResortsOnce();
-    const qNorm = normalizeQuery(q);
-    const results = RESORTS.filter(r => resortMatches(r, qNorm));
-    renderList(results);
+    const qn = normalizeQuery(q);
+    render(RESORTS.filter(r=>resortMatches(r,qn)));
   });
-
-  input.addEventListener('keydown', (e) => {
-    if (list.hidden) return;
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      cursor = Math.min(cursor + 1, list.children.length - 1);
-      highlight();
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      cursor = Math.max(cursor - 1, 0);
-      highlight();
-    } else if (e.key === 'Enter') {
-      if (cursor >= 0 && currentResults[cursor]) {
-        e.preventDefault();
-        choose(currentResults[cursor]);
-      }
-    } else if (e.key === 'Escape') {
-      clearList();
-    }
+  input.addEventListener('keydown', e=>{
+    if(list.hidden) return;
+    if(e.key==='ArrowDown'){ e.preventDefault(); cursor=Math.min(cursor+1, list.children.length-1); highlight(); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); cursor=Math.max(cursor-1, 0); highlight(); }
+    else if(e.key==='Enter'){ if(cursor>=0 && current[cursor]){ e.preventDefault(); choose(current[cursor]); } }
+    else if(e.key==='Escape'){ clearList(); }
   });
-
-  function highlight() {
-    Array.from(list.children).forEach((li, i) => {
-      li.classList.toggle('active', i === cursor);
-      if (i === cursor) li.scrollIntoView({ block: 'nearest' });
+  function highlight(){
+    Array.from(list.children).forEach((li,i)=>{
+      li.classList.toggle('active', i===cursor);
+      if(i===cursor) li.scrollIntoView({block:'nearest'});
     });
   }
+  document.addEventListener('click', e=>{ if(!wrap.contains(e.target)) clearList(); });
 
-  document.addEventListener('click', (e) => {
-    if (!wrap.contains(e.target)) {
-      clearList();
-    }
-  });
-
-  wrap.appendChild(input);
-  wrap.appendChild(hidden);
-  wrap.appendChild(list);
+  wrap.appendChild(input); wrap.appendChild(hidden); wrap.appendChild(list);
   container.appendChild(wrap);
-
-  return { input, hidden, list };
+  return {input, hidden, list};
 }
 
-/* ---------- Minimal Rider & Resort row management (non-breaking) ---------- */
-
+// -------- Stable Form behaviors (restored) --------
 function addRider() {
   const container = document.getElementById('riders');
   const rider = document.createElement('div');
@@ -153,7 +98,7 @@ function addRider() {
     '</select>' +
     '<button type="button" class="remove-btn">Remove</button>';
   container.appendChild(rider);
-  rider.querySelector('.remove-btn').addEventListener('click', () => rider.remove());
+  rider.querySelector('.remove-btn').addEventListener('click', ()=>rider.remove());
 }
 
 async function addResort() {
@@ -166,72 +111,65 @@ async function addResort() {
   const right = document.createElement('div');
   right.className = 'resort-right';
 
-  // Typeahead for resort selection (displays name, posts resort_id)
   createTypeahead(left);
 
   right.innerHTML =
-    '<input type="number" placeholder="Days" name="days" min="1" required>' +
+    '<input type="number" placeholder="Days" name="days" required>' +
     '<label class="blk"><input type="checkbox" name="blackout_ok"> Blackout Days OK</label>' +
     '<button type="button" class="remove-btn">Remove</button>';
 
   row.appendChild(left);
   row.appendChild(right);
   container.appendChild(row);
-
-  right.querySelector('.remove-btn').addEventListener('click', () => row.remove());
+  right.querySelector('.remove-btn').addEventListener('click', ()=>row.remove());
 }
 
-/* ---------- Form submit: keeps existing payload shape ---------- */
+document.addEventListener('DOMContentLoaded', ()=>{
+  // inject typeahead into the first resort row
+  const firstLeft = document.querySelector('#resorts .resort .resort-left');
+  if(firstLeft && !firstLeft.querySelector('.ta-wrap')) createTypeahead(firstLeft);
+});
 
-document.addEventListener('DOMContentLoaded', () => {
-  if (!document.getElementById('riders').children.length) addRider();
-  if (!document.getElementById('resorts').children.length) addResort();
+document.getElementById('expertForm').addEventListener('submit', async function(e){
+  e.preventDefault();
 
-  document.getElementById('addRiderBtn')?.addEventListener('click', addRider);
-  document.getElementById('addResortBtn')?.addEventListener('click', addResort);
+  const riders = [...document.querySelectorAll('#riders .rider')].map(div => ({
+    age: parseInt(div.querySelector('input[name="age"]').value,10),
+    category: (div.querySelector('select[name="category"]').value || 'None')
+  }));
 
-  const form = document.getElementById('expertForm');
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const riders = Array.from(document.querySelectorAll('#riders .rider')).map(div => ({
-      age: parseInt(div.querySelector('input[name=\"age\"]').value, 10),
-      category: (div.querySelector('select[name=\"category\"]').value || 'None')
-    }));
-
-    const resorts = Array.from(document.querySelectorAll('#resorts .resort')).map(div => {
-      const resortId = div.querySelector('input[name=\"resort_id\"]').value.trim();
-      const days = parseInt(div.querySelector('input[name=\"days\"]').value, 10);
-      const blackout_ok = div.querySelector('input[name=\"blackout_ok\"]').checked;
-      return { resort: resortId, days, blackout_ok };
-    });
-
-    const invalid = resorts.find(r => !r.resort || !r.days);
-    if (invalid) {
-      alert('Please select a resort from the list (type ≥ 3 chars) and enter days.');
-      return;
-    }
-
-    const payload = { riders, resort_days: resorts };
-    const url = document.getElementById('endpoint').value.trim();
-
-    try {
-      const resp = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const result = await resp.json();
-
-      if (typeof renderCards === 'function') {
-        renderCards(result.valid_passes || []);
-      } else {
-        console.log(result);
-        alert('Request sent. Open console for details.');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Request failed: ' + (err?.message || err));
-    }
+  const resorts = [...document.querySelectorAll('#resorts .resort')].map(div => {
+    const ridEl = div.querySelector('input[name="resort_id"]');
+    const days = parseInt(div.querySelector('input[name="days"]').value,10);
+    const blackout_ok = div.querySelector('input[name="blackout_ok"]').checked;
+    return { resort: (ridEl ? ridEl.value.trim() : ''), days, blackout_ok };
   });
+
+  if (riders.length===0 || resorts.length===0 || resorts.some(r=>!r.resort || !r.days)) {
+    alert('Please add at least one rider and one resort (select from the list) and enter days.');
+    return;
+  }
+
+  const useMulti = document.getElementById('multiApiToggle')?.checked;
+  const url = useMulti
+    ? 'https://pass-picker-expert-mode-multi.onrender.com/score_multi_pass'
+    : 'https://pass-picker-expert-mode.onrender.com/score_pass';
+  const payload = useMulti
+    ? { riders, resort_days: resorts }
+    : { riders, resort_days: resorts };
+
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json();
+    if (typeof renderCards === 'function') {
+      renderCards(result.valid_passes || []);
+    } else { console.log(result); }
+  } catch (err) {
+    console.error(err);
+    alert('Request failed: ' + (err?.message || err));
+  }
 });
