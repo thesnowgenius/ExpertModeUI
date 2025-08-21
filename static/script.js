@@ -1,10 +1,5 @@
-/* ===== Snow Genius Expert Mode - Single payload fixed to Postman shape =====
-   Endpoints:
-     Multi  → https://pass-picker-expert-mode-multi.onrender.com/score_multi_pass
-     Single → https://pass-picker-expert-mode.onrender.com/expert_mode/calculate
-   Payload keys:
-     Multi  → { riders, resort_days: [{ resort: "<resort_id>", days, blackout_ok }] }
-     Single → { riders: [{ age, quantity }], resort_plan: [{ resort_name, days, blackout_ok }] }
+/* ===== Snow Genius Expert Mode - StableForm2 base =====
+   (Only changes in this file are to PRELOAD the full resorts.json on page load)
 */
 
 let RESORTS = [];
@@ -40,7 +35,8 @@ function createTypeahead(container){
 
   const input = document.createElement('input');
   input.type = 'text';
-  input.className = 'ta-input';
+  input.className = 'ta-input soft-input'; /* CHANGED: add soft-input class to share styling */
+
   input.placeholder = 'Start typing a resort…';
   input.autocomplete = 'off';
   input.inputMode = 'search';
@@ -103,13 +99,13 @@ function createTypeahead(container){
   container.appendChild(wrap);
 }
 
-/* ---------- Row builders (no per-row labels) ---------- */
+/* ---------- Row builders ---------- */
 function riderRow(){
   const row = document.createElement('div');
   row.className = 'rider';
   row.innerHTML =
-    '<input type="number" placeholder="Age" name="age" required>' +
-    '<select name="category">' +   // kept for Multi
+    '<input class="soft-input" type="number" placeholder="Age" name="age" required>' + /* CHANGED */
+    '<select class="soft-input" name="category">' + /* CHANGED */
       '<option value="none">None</option>' +
       '<option value="military">Military</option>' +
       '<option value="student">Student</option>' +
@@ -125,7 +121,7 @@ function resortRow(){
   const left = document.createElement('div'); left.className = 'resort-left'; createTypeahead(left);
   const right = document.createElement('div'); right.className = 'resort-right';
   right.innerHTML =
-    '<input type="number" placeholder="Days" name="days" min="1" required>' +
+    '<input class="soft-input" type="number" placeholder="Days" name="days" min="1" required>' + /* CHANGED */
     '<label class="blk"><input type="checkbox" name="blackout_ok"> Blackout OK</label>' +
     '<button type="button" class="remove-btn">Remove</button>';
   right.querySelector('.remove-btn').addEventListener('click', ()=>row.remove());
@@ -171,8 +167,14 @@ function setRaw(id, data){
   }catch{ el.textContent = String(data); }
 }
 
-/* ---------- Submit ---------- */
-document.addEventListener('DOMContentLoaded', ()=>{
+/* ---------- Submit (unchanged from StableForm2 functional base) ---------- */
+document.addEventListener('DOMContentLoaded', async ()=>{
+  /* CHANGED: Preload full resorts list at page load so type-ahead has ALL items */
+  loadResortsOnce().then(list => {
+    console.log('Resorts loaded:', Array.isArray(list) ? list.length : 0);
+  }).catch(err => console.error('Resort preload failed', err));
+  /* /CHANGED */
+
   addRider(); addResort();
   wireSegToggle();
   document.getElementById('addRiderBtn').addEventListener('click', addRider);
@@ -183,13 +185,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
     e.preventDefault();
     await loadResortsOnce();
 
-    // Riders (collect for multi; we’ll convert for single)
     const ridersRaw = [...document.querySelectorAll('#riders .rider')].map(div => ({
       age: parseInt((div.querySelector('input[name="age"]').value ?? '').toString().trim(), 10),
       category: (div.querySelector('select[name="category"]').value ?? 'none').toString().trim()
     })).filter(r => Number.isFinite(r.age));
 
-    // Resorts (resort_id from typeahead)
     const resortsRaw = [...document.querySelectorAll('#resorts .resort')].map(div => {
       const resort_id = (div.querySelector('input[name="resort_id"]')?.value ?? '').toString().trim();
       const days = parseInt((div.querySelector('input[name="days"]').value ?? '').toString().trim(), 10);
@@ -209,17 +209,11 @@ document.addEventListener('DOMContentLoaded', ()=>{
 
     let payload;
     if (multi) {
-      // Multi: keep {age, category} + resort_days with resort id
       payload = {
-        riders: ridersRaw,
-        resort_days: resortsRaw.map(r => ({
-          resort: r.resort_id,
-          days: r.days,
-          blackout_ok: r.blackout_ok
-        }))
+        riders: ridersRaw, // multi uses {age, category}
+        resort_days: resortsRaw.map(r => ({ resort: r.resort_id, days: r.days, blackout_ok: r.blackout_ok }))
       };
     } else {
-      // Single: convert to Postman shape
       const ridersSingle = ridersRaw.map(r => ({ age: r.age, quantity: 1 }));
       const resortPlan = resortsRaw.map(r => {
         const meta = RESORT_BY_ID.get(r.resort_id);

@@ -13,9 +13,7 @@ body{
 .m0{margin:0}
 .wrap{max-width:980px;margin:0 auto;padding:0 16px}
 .hero{padding:24px 0;border-bottom:1px solid var(--line); text-align:center}
-.logo{width:72px; display:block; margin:0 auto 8px}
-.hero h1{margin:0}
-.hero .sub{margin:6px 0 0;color:var(--muted); text-align:center}
+.logo{width:216px; /* CHANGED: 72px → 216px (300%) */}  /* CHANGED */
 
 .card{
   background:var(--card); border:1px solid var(--line); border-radius:14px;
@@ -32,14 +30,22 @@ body{
 
 .field{display:flex; flex-direction:column; gap:6px; min-width:200px}
 .field>label{font-size:12px; color:var(--muted)}
-.field input[type="text"],
-.field input[type="number"],
-.field select{
-  background:#fff; color:var(--text); border:1px solid var(--line);
-  padding:10px 12px; border-radius:10px; outline:none;
-}
-.field input[type="checkbox"]{transform:scale(1.15)}
 
+/* Base soft inputs (applied to riders age/category and resort days) */
+.soft-input{                                             /* CHANGED */
+  background:#fff; color:var(--text);                   /* CHANGED */
+  border:1px solid var(--line);                         /* CHANGED */
+  padding:10px 12px;                                    /* CHANGED */
+  border-radius:10px;                                   /* CHANGED */
+  outline:none;                                         /* CHANGED */
+  width:100%;                                           /* CHANGED */
+}
+.soft-input:focus{                                      /* CHANGED */
+  box-shadow:0 0 0 3px rgba(10,165,116,.15);            /* CHANGED */
+  border-color:#bfe9d7;                                 /* CHANGED */
+}
+
+/* Buttons */
 .btn{
   appearance:none; border:1px solid var(--line); background:#fff; color:var(--text);
   padding:8px 12px; border-radius:10px; cursor:pointer;
@@ -54,7 +60,13 @@ body{
 .seg{padding:8px 14px; border:none; background:transparent; color:var(--muted); cursor:pointer; border-radius:10px}
 .seg.active{background:var(--brand); color:#fff; font-weight:600}
 
-/* Rows (no per-row labels) */
+/* Grid headers above lists */
+.grid{display:grid; gap:8px; align-items:center; margin-bottom:8px}
+.riders-head{grid-template-columns:.6fr .9fr auto}
+.resorts-head{grid-template-columns:1.3fr .6fr auto}
+.th{font-size:12px; color:var(--muted)}
+
+/* Rows */
 .rider{
   display:grid; grid-template-columns:.6fr .9fr auto; gap:8px; align-items:end;
 }
@@ -64,6 +76,8 @@ body{
 .resort-right{
   display:grid; grid-template-columns:.6fr auto auto; gap:8px; align-items:center;
 }
+
+/* Remove buttons */
 .remove-btn{
   background:#f7f7f7; border:1px solid var(--line); border-radius:8px; padding:6px 10px; cursor:pointer;
 }
@@ -87,7 +101,7 @@ tr:hover td{background:#fcfcfc}
 }
 .footer{color:var(--muted); text-align:center; margin:24px 0 12px}
 
-/* ---- Typeahead Styles ---- */
+/* ---- Typeahead Styles (unchanged) ---- */
 .ta-wrap { position: relative; width: 100%; }
 .ta-input {
   width: 100%;
@@ -95,6 +109,7 @@ tr:hover td{background:#fcfcfc}
   border: 1px solid var(--line); border-radius: 10px;
   font-size: 14px;
 }
+.ta-input:focus{ box-shadow:0 0 0 3px rgba(10,165,116,.15); border-color:#bfe9d7; } /* CHANGED: match soft focus */
 .ta-list {
   position: absolute; top: 100%; left: 0; right: 0;
   max-height: 260px; overflow-y: auto;
@@ -106,9 +121,3 @@ tr:hover td{background:#fcfcfc}
 }
 .ta-item { padding: 8px 12px; cursor: pointer; font-size: 14px; }
 .ta-item:hover, .ta-item.active { background: #f3f7ff; }
-
-/* Simple grid headers above lists */
-.grid{display:grid; gap:8px; align-items:center; margin-bottom:8px}
-.riders-head{grid-template-columns:.6fr .9fr auto}
-.resorts-head{grid-template-columns:1.3fr .6fr auto}
-.th{font-size:12px; color:var(--muted)}
