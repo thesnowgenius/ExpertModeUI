@@ -1,0 +1,26 @@
+*** index.html.orig	2025-08-23
+--- index.html	2025-08-23
+***************
+*** 0 ****
+--- 1,18 ----
++ <!-- PATCH: add per-rider category select next to age input -->
++ <script>
++   function ensureCategorySelects() {
++     document.querySelectorAll('.rider-row').forEach(row => {
++       if (!row.querySelector('.rider-category')) {
++         const sel = document.createElement('select');
++         sel.className = 'rider-category';
++         sel.innerHTML = `
++           <option value="none">None</option>
++           <option value="military">Military</option>
++           <option value="student">Student</option>
++           <option value="nurse">Nurse</option>
++           <option value="teacher">Teacher</option>
++           <option value="first_responder">First Responder</option>
++           <option value="senior">Senior</option>`;
++         row.appendChild(sel);
++       }
++     });
++   }
++   window.addEventListener('DOMContentLoaded', ensureCategorySelects);
++ </script>
