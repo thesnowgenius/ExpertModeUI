@@ -1,102 +1,126 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Snow Genius — Expert Mode</title>
+  <meta charset="utf-8" />
+  <title>EXPERT MODE — Snow Genius</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="static/style.css" />
+  <link rel="icon" href="static/logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --fg:#111827; --muted:#6B7280; --line:#E5E7EB; --ok:#10B981; --err:#EF4444; --bg:#ffffff; }
+    * { box-sizing: border-box; }
+    html, body { margin:0; padding:0; background:#fafafa; color:var(--fg); font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,Apple Color Emoji,Segoe UI Emoji; }
+    .container { max-width: 980px; margin: 24px auto 80px; padding: 0 16px; }
+    header { text-align:center; margin-bottom: 16px; }
+    header img { height: 52px; }
+    header h1 { margin: 8px 0 2px; font-size: 28px; font-weight: 700; }
+    header p { margin:0; color: var(--muted); font-size: 13px; }
+    .card { background:var(--bg); border:1px solid var(--line); border-radius:12px; padding: 14px; margin-bottom: 14px; }
+    .section-title { font-weight: 700; font-size: 18px; margin: 4px 0 12px; }
+    .row { display:flex; gap:10px; align-items:center; margin: 6px 0; }
+    .row > * { flex: 0 0 auto; }
+    input[type="text"], input[type="number"], select {
+      border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:14px; background:#fff; min-width: 120px;
+    }
+    input[type="number"] { width: 80px; }
+    .btn { border:1px solid var(--line); background:#fff; border-radius:10px; padding:7px 12px; font-weight:600; cursor:pointer; }
+    .btn-primary { background:#22C55E; color:#fff; border-color:#16A34A; }
+    .btn-ghost { background:#fff; }
+    .btn-danger { border-color:#ef4444; color:#ef4444; }
+    .pill-ok { color:#10B981; font-weight:700; }
+    .pill-err { color:#EF4444; font-weight:700; }
+    .grid { display:grid; grid-template-columns: 1fr auto auto auto auto; gap:10px; }
+    .resort-row input[type="text"] { width: 100%; }
+    details { border:1px dashed var(--line); border-radius:10px; padding: 8px 10px; background:#fff; }
+    summary { font-weight:600; cursor:pointer; }
+    pre { background:#0B1021; color:#E5E7EB; border-radius:8px; padding:10px; overflow:auto; font-size:12px; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:8px 10px; border-bottom:1px solid var(--line); font-size:14px; text-align:left; }
+    tfoot td { font-weight:700; }
+    .footer { text-align:center; color:var(--muted); font-size:12px; margin-top:24px; }
+    .hint { color:var(--muted); font-size:12px; }
+  </style>
 </head>
 <body>
-  <div class="wrap">
-    <header class="hero">
-      <img src="static/logo.png" alt="Snow Genius" class="logo" />
+  <div class="container">
+    <header>
+      <img src="static/logo.png" alt="EXPERT MODE" />
       <h1>Snow Genius</h1>
-      <p class="sub">Expert Mode — find the lowest-cost pass or combo that matches your exact plan.</p>
+      <p>Expert Mode — find the lowest-cost pass or combo that matches your exact plan.</p>
     </header>
 
-    <!-- API Mode Toggle (segmented) -->
-    <div class="card">
-      <div class="segmented" id="apiMode">
-        <button type="button" class="seg active" data-mode="multi">Multi</button>
-        <button type="button" class="seg" data-mode="single">Single</button>
-      </div>
-      <div class="small pad-top muted">
-        Multi → <code>https://pass-picker-expert-mode-multi.onrender.com/score_multi_pass</code><br />
-        Single → <code>https://pass-picker-expert-mode.onrender.com/expert_mode/calculate</code>
+    <!-- Riders -->
+    <div class="card" id="riders-card">
+      <div class="section-title">Riders</div>
+      <div class="row">
+        <div>
+          <div class="hint">Age</div>
+          <input id="age-input" type="number" min="1" placeholder="Age" value="39" />
+        </div>
+        <div>
+          <div class="hint">Category</div>
+          <select id="category-select">
+            <option value="none" selected>None</option>
+            <option value="military">Military</option>
+          </select>
+        </div>
+        <div style="flex:1"></div>
+        <button class="btn btn-ghost" id="add-rider-btn" disabled title="Future: multi-rider">+ Add Rider</button>
       </div>
     </div>
 
-    <form id="expertForm" class="card">
-      <!-- Riders -->
-      <div class="header-row row">
-        <h2 class="m0">Riders</h2>
-        <div class="inline gap">
-          <button type="button" class="btn" id="addRiderBtn">+ Add Rider</button>
-        </div>
+    <!-- Resorts -->
+    <div class="card" id="resorts-card">
+      <div class="section-title">Resorts</div>
+
+      <div class="grid hint" style="margin-bottom:6px;">
+        <div>Resort</div>
+        <div>Days</div>
+        <div>Blackout OK</div>
+        <div style="width:1px;"></div>
+        <div style="width:1px;"></div>
       </div>
 
-      <!-- Riders column header (static) -->
-      <div class="grid riders-head">
-        <div class="th">Age</div>
-        <div class="th">Category</div>
-        <div class="th"></div>
+      <div id="resort-rows"></div>
+
+      <div class="row" style="margin-top:8px;">
+        <button class="btn btn-ghost" id="add-resort">+ Add Resort</button>
+        <button class="btn btn-ghost" id="clear-resorts">Clear</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-primary" id="submit-btn">Submit</button>
       </div>
 
-      <div id="riders" class="stack"></div>
-
-      <!-- Resorts -->
-      <div class="header-row row pad-top">
-        <h2 class="m0">Resorts</h2>
-        <div class="inline gap">
-          <button type="button" class="btn" id="addResortBtn">+ Add Resort</button>
-          <button type="button" class="btn btn-ghost" id="clearAllBtn">Clear</button>
-        </div>
+      <div class="row" id="status-row" style="display:none;">
+        <span id="status-pill" class="pill-ok">OK</span>
       </div>
-
-      <!-- Resorts column header (static) -->
-      <div class="grid resorts-head">
-        <div class="th">Resort</div>
-        <div class="th">Days</div>
-        <div class="th">Blackout OK</div>
-      </div>
-
-      <div id="resorts" class="stack"></div>
-
-      <!-- Status + Submit -->
-      <div class="row header-row">
-        <div class="status" id="status">Idle</div>
-        <button type="submit" class="btn btn-primary" id="submitBtn">Submit</button>
-      </div>
-    </form>
+    </div>
 
     <!-- Raw panes -->
     <div class="card">
-      <details>
+      <details open>
         <summary>Raw Request</summary>
-        <pre id="rawRequest" class="codeblock">{}</pre>
+        <pre id="raw-request">{}</pre>
       </details>
-      <details class="pad-top">
+    </div>
+
+    <div class="card">
+      <details open>
         <summary>Raw Response</summary>
-        <pre id="rawResponse" class="codeblock">{}</pre>
+        <pre id="raw-response">{}</pre>
       </details>
     </div>
 
     <!-- Results -->
     <div class="card">
-      <div class="header-row row">
-        <h2 class="m0">Results</h2>
-        <div id="sortBar" class="small muted" style="display:none">Sorted by cost</div>
-      </div>
-      <div id="results-container" class="table-wrap"></div>
+      <div class="section-title">Results</div>
+      <div id="results"></div>
     </div>
 
-    <footer class="footer small">© Snow Genius</footer>
+    <div class="footer">© Snow Genius</div>
   </div>
-  <script src="./static/sg-compat.js"></script>
+
   <script src="static/script.js"></script>
-  <script src="results.js"></script>
-  <script src="autoResize.js"></script>
-  <!-- at the very end, before </body> -->
-<script src="static/script.js"></script>
 </body>
 </html>

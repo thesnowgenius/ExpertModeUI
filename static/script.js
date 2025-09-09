@@ -1,237 +1,175 @@
-<script>
-// =======================
-// Config
-// =======================
-const MULTI_URL  = "https://pass-picker-expert-mode-multi.onrender.com/score_multi_pass";
-// kept for display only (disabled below)
-const SINGLE_URL = "https://pass-picker-expert-mode.onrender.com/expert_mode/calculate";
+/* Snow Genius — Expert Mode UI
+ * Single-API client (Multi only). Keeps original UX: riders, resort rows,
+ * raw request/response, results table.
+ */
 
-// =======================
-// DOM helpers
-// =======================
-const $ = (sel, root=document) => root.querySelector(sel);
-const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
-const setText = (el, txt) => { el.textContent = txt; };
-const pretty = (obj) => JSON.stringify(obj, null, 2);
-const safeJson = (v) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } };
+const API_URL = "https://pass-picker-expert-mode-multi.onrender.com/score_multi_pass";
 
-// UI Elements
-const els = {
-  pillMulti:  $("#pill-multi"),
-  pillSingle: $("#pill-single"),
-  multiUrl:   $("#multi-url"),
-  singleUrl:  $("#single-url"),
-  ageInput:   $("#age"),
-  categorySel:$("#category"),
-  resortsList:$("#resorts-list"),
-  addResort:  $("#add-resort"),
-  clearResort:$("#clear-resorts"),
-  submit:     $("#submit"),
-  status:     $("#status"),
-  rawReq:     $("#raw-request"),
-  rawRes:     $("#raw-response"),
-  results:    $("#results-body"),
-};
+const el = (id) => document.getElementById(id);
 
-// Keep page header text untouched, but disable Single pill
-function initHeader() {
-  if (els.multiUrl)  setText(els.multiUrl, `Multi = ${MULTI_URL}`);
-  if (els.singleUrl) setText(els.singleUrl, `Single = ${SINGLE_URL} (disabled)`);
-  if (els.pillSingle) {
-    els.pillSingle.classList.add("opacity-50","pointer-events-none","cursor-not-allowed");
-    els.pillSingle.setAttribute("aria-disabled","true");
-    els.pillSingle.title = "Single endpoint retired — multi handles single + combos.";
-  }
-}
-
-// =======================
-// Resorts UI
-// =======================
-function resortRow({resort="", days=1, blackout=false}={}) {
+// ---------- Resort rows ----------
+function makeResortRow(defaults = { resort: "", days: 1, blackout_ok: false }) {
   const row = document.createElement("div");
-  row.className = "resort-row flex items-center gap-2 mb-2";
+  row.className = "grid resort-row";
 
-  row.innerHTML = `
-    <input class="resort-name input" placeholder="Resort" value="${resort}">
-    <input class="resort-days input w-16 text-right" type="number" min="1" value="${days}">
-    <label class="inline-flex items-center gap-1 text-sm">
-      <input class="resort-blackout" type="checkbox" ${blackout ? "checked": ""}>
-      Blackout OK
-    </label>
-    <button class="remove-resort btn btn-sm">Remove</button>
-  `;
+  const resortInput = document.createElement("input");
+  resortInput.type = "text";
+  resortInput.placeholder = "Start typing… e.g. Loon, NH";
+  resortInput.value = defaults.resort;
 
-  row.querySelector(".remove-resort").addEventListener("click", () => {
-    row.remove();
-    validateForm();
-  });
+  const daysInput = document.createElement("input");
+  daysInput.type = "number";
+  daysInput.min = "1";
+  daysInput.value = String(defaults.days || 1);
+
+  const blackoutInput = document.createElement("input");
+  blackoutInput.type = "checkbox";
+  blackoutInput.checked = Boolean(defaults.blackout_ok);
+
+  const removeBtn = document.createElement("button");
+  removeBtn.className = "btn btn-danger";
+  removeBtn.textContent = "Remove";
+  removeBtn.addEventListener("click", () => row.remove());
+
+  // spacer for grid alignment
+  const spacer = document.createElement("div");
+
+  row.appendChild(resortInput);
+  row.appendChild(daysInput);
+  row.appendChild(blackoutInput);
+  row.appendChild(spacer);
+  row.appendChild(removeBtn);
+
   return row;
 }
 
-function addResort(resort="", days=1, blackout=false) {
-  els.resortsList.appendChild(resortRow({resort, days, blackout}));
-  validateForm();
+function addResortRow(defaults) {
+  el("resort-rows").appendChild(makeResortRow(defaults));
+  setStatus("OK", true);
 }
 
 function clearResorts() {
-  els.resortsList.innerHTML = "";
-  validateForm();
+  el("resort-rows").innerHTML = "";
+  setStatus("Idle", true);
 }
 
-// =======================
-// Validation + Payload
-// =======================
-function getCategoryValue() {
-  // UI shows "None", "Military". Backend expects lowercase key or "none".
-  const raw = (els.categorySel.value || "").trim().toLowerCase();
-  if (!raw || raw === "none") return "none";
-  return raw; // "military", future specials can pass through
+// ---------- Status / Raw panes ----------
+function setStatus(text, ok = true) {
+  const pill = el("status-pill");
+  const row = el("status-row");
+  pill.textContent = text;
+  pill.className = ok ? "pill-ok" : "pill-err";
+  row.style.display = "flex";
 }
 
+function showRawRequest(obj) {
+  el("raw-request").textContent = JSON.stringify(obj, null, 2);
+}
+function showRawResponse(obj) {
+  el("raw-response").textContent = JSON.stringify(obj, null, 2);
+}
+
+// ---------- Payload builder ----------
 function buildPayload() {
-  const age = parseInt(els.ageInput.value || "0", 10);
-  const category = getCategoryValue();
+  const age = parseInt(el("age-input").value, 10) || 18;
+  const category = (el("category-select").value || "none").toLowerCase();
 
-  const rider = { age, quantity: 1, category }; // quantity kept for future multi-rider
-  const resort_days = [];
+  const rows = [...document.querySelectorAll("#resort-rows .resort-row")];
+  const resort_days = rows.map(r => {
+    const [resortInput, daysInput, blackoutInput] = r.querySelectorAll("input");
+    return {
+      resort: (resortInput.value || "").trim(),
+      days: Math.max(1, parseInt(daysInput.value, 10) || 1),
+      blackout_ok: Boolean(blackoutInput.checked)
+    };
+  }).filter(r => r.resort.length > 0);
 
-  $$(".resort-row", els.resortsList).forEach(row => {
-    const resort = row.querySelector(".resort-name").value.trim();
-    const days   = parseInt(row.querySelector(".resort-days").value || "0", 10);
-    const blackout_ok = !!row.querySelector(".resort-blackout").checked;
-
-    if (resort && days > 0) {
-      // The backend normalizer can resolve names → canonical IDs.
-      resort_days.push({ resort, days, blackout_ok });
-    }
-  });
-
-  return { riders: [rider], resort_days };
+  return {
+    riders: [{ age, category }],
+    resort_days
+  };
 }
 
-function validateForm() {
-  const payload = buildPayload();
+// ---------- Results renderer ----------
+function renderResults(obj) {
+  const mount = el("results");
+  mount.innerHTML = "";
 
-  if (payload.riders.length === 0 || payload.resort_days.length === 0) {
-    setStatus("Error");
-    return false;
-  }
-  setStatus("OK");
-  return true;
-}
-
-function setStatus(kind) {
-  const node = els.status;
-  node.textContent = kind;
-  node.classList.remove("text-green-600","text-red-600");
-  node.classList.add(kind === "OK" ? "text-green-600" : "text-red-600");
-}
-
-// =======================
-// Fetch Wrapper (CORS-safe)
-// =======================
-async function postJSON(url, bodyObj) {
-  const res = await fetch(url, {
-    method: "POST",
-    mode: "cors",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(bodyObj),
-  });
-  const text = await res.text(); // allow non-JSON error shapes
-  try { return { ok: res.ok, json: JSON.parse(text), raw: text }; }
-  catch { return { ok: res.ok, json: null, raw: text }; }
-}
-
-// =======================
-// Result renderers
-// =======================
-function renderResults(data) {
-  // Accept a few backend shapes to be future-proof.
-  // 1) { best_combo: [...], total_cost, line_items? }
-  // 2) { result: {...}, total_cost }
-  // 3) { combos: [{passes:[...], cost:...}], best: ... }
-  const tbody = els.results;
-  tbody.innerHTML = "";
-
-  let bestCombo = null;
-  let totalCost = null;
-
-  if (data && typeof data === "object") {
-    if (Array.isArray(data.best_combo)) bestCombo = data.best_combo;
-    if (typeof data.total_cost === "number") totalCost = data.total_cost;
-
-    // alt shapes
-    if (!bestCombo && data.result && Array.isArray(data.result.best_combo)) {
-      bestCombo = data.result.best_combo;
-    }
-    if (totalCost == null && data.result && typeof data.result.total_cost === "number") {
-      totalCost = data.result.total_cost;
-    }
-  }
-
-  const tr = document.createElement("tr");
-  tr.innerHTML = `
-    <td class="py-2 pl-3">Best Combo</td>
-    <td class="py-2 pr-3 text-right">${bestCombo ? bestCombo.join(" + ") : "—"}</td>
-  `;
-  tbody.appendChild(tr);
-
-  const tr2 = document.createElement("tr");
-  tr2.innerHTML = `
-    <td class="py-2 pl-3">Total Cost</td>
-    <td class="py-2 pr-3 text-right">${totalCost != null ? `$${totalCost}` : "—"}</td>
-  `;
-  tbody.appendChild(tr2);
-}
-
-// =======================
-// Submit
-// =======================
-async function onSubmit() {
-  if (!validateForm()) {
-    els.rawReq.textContent = pretty({error: "invalid form"});
-    els.rawRes.textContent = pretty({error: "form not valid"});
+  if (!obj || typeof obj !== "object") {
+    mount.innerHTML = `<pre>{"error":"No response"}</pre>`;
     return;
   }
 
+  if (obj.error) {
+    mount.innerHTML = `<pre>${JSON.stringify(obj, null, 2)}</pre>`;
+    setStatus("Error", false);
+    return;
+  }
+
+  // Expected minimal fields from backend
+  const best = obj.best_combo || obj.best || [];
+  const total = obj.total_cost ?? obj.total ?? null;
+
+  if ((!best || best.length === 0) && total === null) {
+    mount.innerHTML = `<pre>${JSON.stringify(obj, null, 2)}</pre>`;
+    setStatus("OK (no best_combo?)", true);
+    return;
+  }
+
+  const table = document.createElement("table");
+  const thead = document.createElement("thead");
+  const tbody = document.createElement("tbody");
+  const tfoot = document.createElement("tfoot");
+
+  thead.innerHTML = `<tr><th>Best Combo</th><th>Total Cost</th></tr>`;
+  const row = document.createElement("tr");
+  row.innerHTML = `<td>${Array.isArray(best) ? best.join(" + ") : String(best)}</td>
+                   <td>$${Number(total).toLocaleString()}</td>`;
+  tbody.appendChild(row);
+  table.appendChild(thead);
+  table.appendChild(tbody);
+  mount.appendChild(table);
+
+  setStatus("OK", true);
+}
+
+// ---------- Submit ----------
+async function submitPlan() {
   const payload = buildPayload();
-  els.rawReq.textContent = pretty({ url: MULTI_URL, payload });
+
+  // Basic client-side validation
+  if (!payload.resort_days || payload.resort_days.length === 0) {
+    setStatus("Add at least one resort", false);
+    return;
+  }
+
+  showRawRequest({ url: API_URL, payload });
 
   try {
-    const { ok, json, raw } = await postJSON(MULTI_URL, payload);
-    if (!ok) {
-      els.rawRes.textContent = pretty({ error: "HTTP error", raw });
-      renderResults({});
-      return;
-    }
-    els.rawRes.textContent = pretty(json ?? raw);
-    renderResults(json ?? {});
-  } catch (e) {
-    els.rawRes.textContent = pretty({ error: String(e) });
-    renderResults({});
+    const resp = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      mode: "cors",
+      body: JSON.stringify(payload)
+    });
+
+    const data = await resp.json().catch(() => ({}));
+    showRawResponse(data);
+    renderResults(data);
+  } catch (err) {
+    const e = { error: String(err) };
+    showRawResponse(e);
+    renderResults(e);
+    setStatus("Network error", false);
   }
 }
 
-// =======================
-// Wire up
-// =======================
-function boot() {
-  initHeader();
+// ---------- Wire up ----------
+document.addEventListener("DOMContentLoaded", () => {
+  // a single starter row
+  addResortRow();
 
-  els.addResort?.addEventListener("click", () => addResort());
-  els.clearResort?.addEventListener("click", clearResorts);
-  els.submit?.addEventListener("click", onSubmit);
-
-  ["input","change"].forEach(ev => {
-    els.ageInput?.addEventListener(ev, validateForm);
-    els.categorySel?.addEventListener(ev, validateForm);
-  });
-
-  // start with one blank row if none present
-  if ($$(".resort-row", els.resortsList).length === 0) addResort();
-
-  validateForm();
-}
-
-document.addEventListener("DOMContentLoaded", boot);
-</script>
+  el("add-resort").addEventListener("click", () => addResortRow());
+  el("clear-resorts").addEventListener("click", clearResorts);
+  el("submit-btn").addEventListener("click", submitPlan);
+});
