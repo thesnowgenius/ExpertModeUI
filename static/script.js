@@ -1,246 +1,237 @@
-/* ===== Snow Genius Expert Mode - StableForm2 base =====
-   (Only changes in this file are to PRELOAD the full resorts.json on page load)
-*/
+<script>
+// =======================
+// Config
+// =======================
+const MULTI_URL  = "https://pass-picker-expert-mode-multi.onrender.com/score_multi_pass";
+// kept for display only (disabled below)
+const SINGLE_URL = "https://pass-picker-expert-mode.onrender.com/expert_mode/calculate";
 
-let RESORTS = [];
-let RESORTS_LOADED = false;
-let RESORT_BY_ID = new Map();
+// =======================
+// DOM helpers
+// =======================
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+const setText = (el, txt) => { el.textContent = txt; };
+const pretty = (obj) => JSON.stringify(obj, null, 2);
+const safeJson = (v) => { try { return JSON.stringify(v, null, 2); } catch { return String(v); } };
 
-async function loadResortsOnce() {
-  if (RESORTS_LOADED) return RESORTS;
-  const resp = await fetch('static/resorts.json', { cache: 'no-store' });
-  RESORTS = await resp.json();
-  RESORT_BY_ID.clear();
-  RESORTS.forEach(r => {
-    const id = (r.resort_id ?? '').toString().trim();
-    if (id) RESORT_BY_ID.set(id, r);
-  });
-  RESORTS_LOADED = true;
-  return RESORTS;
-}
+// UI Elements
+const els = {
+  pillMulti:  $("#pill-multi"),
+  pillSingle: $("#pill-single"),
+  multiUrl:   $("#multi-url"),
+  singleUrl:  $("#single-url"),
+  ageInput:   $("#age"),
+  categorySel:$("#category"),
+  resortsList:$("#resorts-list"),
+  addResort:  $("#add-resort"),
+  clearResort:$("#clear-resorts"),
+  submit:     $("#submit"),
+  status:     $("#status"),
+  rawReq:     $("#raw-request"),
+  rawRes:     $("#raw-response"),
+  results:    $("#results-body"),
+};
 
-function formatResortLabel(r){
-  return r.state ? `${r.resort_name}, ${r.state}` : r.resort_name;
-}
-function normalizeQuery(q){
-  return (q ?? '').toString().toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g,'');
-}
-function resortMatches(r,q){
-  return [r.resort_name, r.resort_id, r.state].some(v => normalizeQuery(v||'').includes(q));
-}
-
-function createTypeahead(container){
-  const wrap = document.createElement('div');
-  wrap.className = 'ta-wrap';
-
-  const input = document.createElement('input');
-  input.type = 'text';
-  input.className = 'ta-input soft-input'; /* CHANGED: add soft-input class to share styling */
-
-  input.placeholder = 'Start typing a resort…';
-  input.autocomplete = 'off';
-  input.inputMode = 'search';
-
-  const hidden = document.createElement('input');
-  hidden.type = 'hidden';
-  hidden.name = 'resort_id';
-
-  const list = document.createElement('ul');
-  list.className = 'ta-list';
-  list.hidden = true;
-
-  let cursor = -1;
-  let current = [];
-
-  function clearList(){ list.innerHTML=''; list.hidden=true; cursor=-1; current=[]; }
-  function choose(r){ input.value = formatResortLabel(r); hidden.value = r.resort_id; clearList(); }
-  function render(items){
-    list.innerHTML = '';
-    current = items.slice(0, 20);
-    current.forEach(r=>{
-      const li = document.createElement('li');
-      li.className = 'ta-item';
-      li.textContent = formatResortLabel(r);
-      li.addEventListener('mousedown', e => { e.preventDefault(); choose(r); });
-      list.appendChild(li);
-    });
-    list.hidden = current.length === 0;
-    cursor = -1;
+// Keep page header text untouched, but disable Single pill
+function initHeader() {
+  if (els.multiUrl)  setText(els.multiUrl, `Multi = ${MULTI_URL}`);
+  if (els.singleUrl) setText(els.singleUrl, `Single = ${SINGLE_URL} (disabled)`);
+  if (els.pillSingle) {
+    els.pillSingle.classList.add("opacity-50","pointer-events-none","cursor-not-allowed");
+    els.pillSingle.setAttribute("aria-disabled","true");
+    els.pillSingle.title = "Single endpoint retired — multi handles single + combos.";
   }
-
-  input.addEventListener('input', async ()=>{
-    hidden.value = '';
-    const q = input.value.trim();
-    if (q.length < 3) { clearList(); return; }
-    await loadResortsOnce();
-    render(RESORTS.filter(r => resortMatches(r, normalizeQuery(q))));
-  });
-
-  input.addEventListener('keydown', e=>{
-    if (list.hidden) return;
-    if (e.key === 'ArrowDown') { e.preventDefault(); cursor = Math.min(cursor+1, list.children.length-1); highlight(); }
-    else if (e.key === 'ArrowUp') { e.preventDefault(); cursor = Math.max(cursor-1, 0); highlight(); }
-    else if (e.key === 'Enter') { if (cursor>=0 && current[cursor]) { e.preventDefault(); choose(current[cursor]); } }
-    else if (e.key === 'Escape') { clearList(); }
-  });
-
-  function highlight(){
-    Array.from(list.children).forEach((li,i)=>{
-      li.classList.toggle('active', i===cursor);
-      if (i===cursor) li.scrollIntoView({block:'nearest'});
-    });
-  }
-
-  document.addEventListener('click', e=>{ if (!wrap.contains(e.target)) clearList(); });
-
-  wrap.appendChild(input);
-  wrap.appendChild(hidden);
-  wrap.appendChild(list);
-  container.appendChild(wrap);
 }
 
-/* ---------- Row builders ---------- */
-function riderRow(){
-  const row = document.createElement('div');
-  row.className = 'rider';
-  row.innerHTML =
-    '<input class="soft-input" type="number" placeholder="Age" name="age" required>' + /* CHANGED */
-    '<select class="soft-input" name="category">' + /* CHANGED */
-      '<option value="none">None</option>' +
-      '<option value="military">Military</option>' +
-      '<option value="student">Student</option>' +
-      '<option value="nurse">Nurse</option>' +
-    '</select>' +
-    '<button type="button" class="remove-btn">Remove</button>';
-  row.querySelector('.remove-btn').addEventListener('click', ()=>row.remove());
+// =======================
+// Resorts UI
+// =======================
+function resortRow({resort="", days=1, blackout=false}={}) {
+  const row = document.createElement("div");
+  row.className = "resort-row flex items-center gap-2 mb-2";
+
+  row.innerHTML = `
+    <input class="resort-name input" placeholder="Resort" value="${resort}">
+    <input class="resort-days input w-16 text-right" type="number" min="1" value="${days}">
+    <label class="inline-flex items-center gap-1 text-sm">
+      <input class="resort-blackout" type="checkbox" ${blackout ? "checked": ""}>
+      Blackout OK
+    </label>
+    <button class="remove-resort btn btn-sm">Remove</button>
+  `;
+
+  row.querySelector(".remove-resort").addEventListener("click", () => {
+    row.remove();
+    validateForm();
+  });
   return row;
 }
-function resortRow(){
-  const row = document.createElement('div');
-  row.className = 'resort';
-  const left = document.createElement('div'); left.className = 'resort-left'; createTypeahead(left);
-  const right = document.createElement('div'); right.className = 'resort-right';
-  right.innerHTML =
-    '<input class="soft-input" type="number" placeholder="Days" name="days" min="1" required>' + /* CHANGED */
-    '<label class="blk"><input type="checkbox" name="blackout_ok"> Blackout OK</label>' +
-    '<button type="button" class="remove-btn">Remove</button>';
-  right.querySelector('.remove-btn').addEventListener('click', ()=>row.remove());
-  row.appendChild(left); row.appendChild(right);
-  return row;
-}
-function addRider(){ document.getElementById('riders').appendChild(riderRow()); }
-function addResort(){ document.getElementById('resorts').appendChild(resortRow()); }
-function clearAll(){
-  document.getElementById('riders').innerHTML=''; document.getElementById('resorts').innerHTML='';
-  addRider(); addResort();
-  setStatus('Idle'); setRaw('rawRequest', {}); setRaw('rawResponse', {}); renderCards([]);
+
+function addResort(resort="", days=1, blackout=false) {
+  els.resortsList.appendChild(resortRow({resort, days, blackout}));
+  validateForm();
 }
 
-/* ---------- Toggle ---------- */
-function wireSegToggle(){
-  const segs = [...document.querySelectorAll('.segmented .seg')];
-  segs.forEach(seg=>{
-    seg.addEventListener('click', ()=>{
-      segs.forEach(s=>s.classList.remove('active'));
-      seg.classList.add('active');
-    });
+function clearResorts() {
+  els.resortsList.innerHTML = "";
+  validateForm();
+}
+
+// =======================
+// Validation + Payload
+// =======================
+function getCategoryValue() {
+  // UI shows "None", "Military". Backend expects lowercase key or "none".
+  const raw = (els.categorySel.value || "").trim().toLowerCase();
+  if (!raw || raw === "none") return "none";
+  return raw; // "military", future specials can pass through
+}
+
+function buildPayload() {
+  const age = parseInt(els.ageInput.value || "0", 10);
+  const category = getCategoryValue();
+
+  const rider = { age, quantity: 1, category }; // quantity kept for future multi-rider
+  const resort_days = [];
+
+  $$(".resort-row", els.resortsList).forEach(row => {
+    const resort = row.querySelector(".resort-name").value.trim();
+    const days   = parseInt(row.querySelector(".resort-days").value || "0", 10);
+    const blackout_ok = !!row.querySelector(".resort-blackout").checked;
+
+    if (resort && days > 0) {
+      // The backend normalizer can resolve names → canonical IDs.
+      resort_days.push({ resort, days, blackout_ok });
+    }
   });
-}
-function isMultiModeSelected(){
-  const a = document.querySelector('.segmented .seg.active');
-  return !a || a.dataset.mode === 'multi';
+
+  return { riders: [rider], resort_days };
 }
 
-/* ---------- Status + Raw panes ---------- */
-function setStatus(text, cls){
-  const el = document.getElementById('status');
-  if (!el) return;
-  el.textContent = text;
-  el.className = 'status' + (cls ? (' ' + cls) : '');
-}
-function setRaw(id, data){
-  const el = document.getElementById(id);
-  if (!el) return;
-  try{
-    el.textContent = JSON.stringify(data ?? {}, null, 2);
-    const det = el.closest('details'); if (det) det.open = true;
-  }catch{ el.textContent = String(data); }
+function validateForm() {
+  const payload = buildPayload();
+
+  if (payload.riders.length === 0 || payload.resort_days.length === 0) {
+    setStatus("Error");
+    return false;
+  }
+  setStatus("OK");
+  return true;
 }
 
-/* ---------- Submit (unchanged from StableForm2 functional base) ---------- */
-document.addEventListener('DOMContentLoaded', async ()=>{
-  /* CHANGED: Preload full resorts list at page load so type-ahead has ALL items */
-  loadResortsOnce().then(list => {
-    console.log('Resorts loaded:', Array.isArray(list) ? list.length : 0);
-  }).catch(err => console.error('Resort preload failed', err));
-  /* /CHANGED */
+function setStatus(kind) {
+  const node = els.status;
+  node.textContent = kind;
+  node.classList.remove("text-green-600","text-red-600");
+  node.classList.add(kind === "OK" ? "text-green-600" : "text-red-600");
+}
 
-  addRider(); addResort();
-  wireSegToggle();
-  document.getElementById('addRiderBtn').addEventListener('click', addRider);
-  document.getElementById('addResortBtn').addEventListener('click', addResort);
-  document.getElementById('clearAllBtn').addEventListener('click', clearAll);
+// =======================
+// Fetch Wrapper (CORS-safe)
+// =======================
+async function postJSON(url, bodyObj) {
+  const res = await fetch(url, {
+    method: "POST",
+    mode: "cors",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(bodyObj),
+  });
+  const text = await res.text(); // allow non-JSON error shapes
+  try { return { ok: res.ok, json: JSON.parse(text), raw: text }; }
+  catch { return { ok: res.ok, json: null, raw: text }; }
+}
 
-  document.getElementById('expertForm').addEventListener('submit', async (e)=>{
-    e.preventDefault();
-    await loadResortsOnce();
+// =======================
+// Result renderers
+// =======================
+function renderResults(data) {
+  // Accept a few backend shapes to be future-proof.
+  // 1) { best_combo: [...], total_cost, line_items? }
+  // 2) { result: {...}, total_cost }
+  // 3) { combos: [{passes:[...], cost:...}], best: ... }
+  const tbody = els.results;
+  tbody.innerHTML = "";
 
-    const ridersRaw = [...document.querySelectorAll('#riders .rider')].map(div => ({
-      age: parseInt((div.querySelector('input[name="age"]').value ?? '').toString().trim(), 10),
-      category: (div.querySelector('select[name="category"]').value ?? 'none').toString().trim()
-    })).filter(r => Number.isFinite(r.age));
+  let bestCombo = null;
+  let totalCost = null;
 
-    const resortsRaw = [...document.querySelectorAll('#resorts .resort')].map(div => {
-      const resort_id = (div.querySelector('input[name="resort_id"]')?.value ?? '').toString().trim();
-      const days = parseInt((div.querySelector('input[name="days"]').value ?? '').toString().trim(), 10);
-      const blackout_ok = !!div.querySelector('input[name="blackout_ok"]').checked;
-      return { resort_id, days, blackout_ok };
-    }).filter(r => r.resort_id && Number.isFinite(r.days));
+  if (data && typeof data === "object") {
+    if (Array.isArray(data.best_combo)) bestCombo = data.best_combo;
+    if (typeof data.total_cost === "number") totalCost = data.total_cost;
 
-    if (!ridersRaw.length || !resortsRaw.length) {
-      alert('Please add at least one rider and one resort (select from the list) and enter days.');
+    // alt shapes
+    if (!bestCombo && data.result && Array.isArray(data.result.best_combo)) {
+      bestCombo = data.result.best_combo;
+    }
+    if (totalCost == null && data.result && typeof data.result.total_cost === "number") {
+      totalCost = data.result.total_cost;
+    }
+  }
+
+  const tr = document.createElement("tr");
+  tr.innerHTML = `
+    <td class="py-2 pl-3">Best Combo</td>
+    <td class="py-2 pr-3 text-right">${bestCombo ? bestCombo.join(" + ") : "—"}</td>
+  `;
+  tbody.appendChild(tr);
+
+  const tr2 = document.createElement("tr");
+  tr2.innerHTML = `
+    <td class="py-2 pl-3">Total Cost</td>
+    <td class="py-2 pr-3 text-right">${totalCost != null ? `$${totalCost}` : "—"}</td>
+  `;
+  tbody.appendChild(tr2);
+}
+
+// =======================
+// Submit
+// =======================
+async function onSubmit() {
+  if (!validateForm()) {
+    els.rawReq.textContent = pretty({error: "invalid form"});
+    els.rawRes.textContent = pretty({error: "form not valid"});
+    return;
+  }
+
+  const payload = buildPayload();
+  els.rawReq.textContent = pretty({ url: MULTI_URL, payload });
+
+  try {
+    const { ok, json, raw } = await postJSON(MULTI_URL, payload);
+    if (!ok) {
+      els.rawRes.textContent = pretty({ error: "HTTP error", raw });
+      renderResults({});
       return;
     }
+    els.rawRes.textContent = pretty(json ?? raw);
+    renderResults(json ?? {});
+  } catch (e) {
+    els.rawRes.textContent = pretty({ error: String(e) });
+    renderResults({});
+  }
+}
 
-    const multi = isMultiModeSelected();
-    const url = multi
-      ? 'https://pass-picker-expert-mode-multi.onrender.com/score_multi_pass'
-      : 'https://pass-picker-expert-mode.onrender.com/expert_mode/calculate';
+// =======================
+// Wire up
+// =======================
+function boot() {
+  initHeader();
 
-    let payload;
-    if (multi) {
-      payload = {
-        riders: ridersRaw, // multi uses {age, category}
-        resort_days: resortsRaw.map(r => ({ resort: r.resort_id, days: r.days, blackout_ok: r.blackout_ok }))
-      };
-    } else {
-      const ridersSingle = ridersRaw.map(r => ({ age: r.age, quantity: 1 }));
-      const resortPlan = resortsRaw.map(r => {
-        const meta = RESORT_BY_ID.get(r.resort_id);
-        const resort_name = (meta?.resort_name ?? r.resort_id).toString().trim();
-        return { resort_name, days: r.days, blackout_ok: r.blackout_ok };
-      });
-      payload = { riders: ridersSingle, resort_plan: resortPlan };
-    }
+  els.addResort?.addEventListener("click", () => addResort());
+  els.clearResort?.addEventListener("click", clearResorts);
+  els.submit?.addEventListener("click", onSubmit);
 
-    setRaw('rawRequest', { url, payload });
-    setStatus('Processing…');
-
-    try{
-      const resp = await fetch(url, {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
-      });
-      const data = await resp.json();
-      setRaw('rawResponse', data);
-      setStatus(resp.ok ? 'OK' : 'Error', resp.ok ? 'ok' : 'err');
-      renderCards(data);
-    }catch(err){
-      console.error(err);
-      setRaw('rawResponse', { error:String(err) });
-      setStatus('Error', 'err');
-      alert('Request failed: ' + (err?.message || err));
-    }
+  ["input","change"].forEach(ev => {
+    els.ageInput?.addEventListener(ev, validateForm);
+    els.categorySel?.addEventListener(ev, validateForm);
   });
-});
+
+  // start with one blank row if none present
+  if ($$(".resort-row", els.resortsList).length === 0) addResort();
+
+  validateForm();
+}
+
+document.addEventListener("DOMContentLoaded", boot);
+</script>
