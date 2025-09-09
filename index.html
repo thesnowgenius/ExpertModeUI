@@ -1,62 +1,89 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta charset="UTF-8" />
   <title>Snow Genius — Expert Mode</title>
-  <link rel="stylesheet" href="static/style.css"/>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="static/style.css" />
   <script>
-    // Configure this in production if your API is hosted on a different origin.
-    // Example: window.API_BASE = "https://api.snowgenius.example";
+    /* Set this if your API is on a different origin. Example:
+       window.API_BASE = "https://api.snowgenius.example"; */
     window.API_BASE = window.API_BASE || "";
   </script>
 </head>
 <body>
-  <main class="container">
-    <header class="header">
-      <img src="static/logo.svg" alt="Expert Mode" class="logo"/>
+  <div class="wrap">
+    <header class="hero">
+      <img src="static/logo.svg" alt="Expert Mode" class="logo" />
       <h1>Snow Genius</h1>
       <p class="sub">Expert Mode — find the lowest-cost pass or combo that matches your exact plan.</p>
     </header>
 
-    <section class="card">
-      <h2>Riders</h2>
-      <div id="riders"></div>
-      <div class="row actions">
-        <button type="button" id="addRiderBtn" class="btn">+ Add Rider</button>
+    <form id="expertForm" class="card">
+      <!-- Riders -->
+      <div class="header-row row">
+        <h2 class="m0">Riders</h2>
+        <div class="inline gap">
+          <button type="button" class="btn" id="addRiderBtn">+ Add Rider</button>
+        </div>
       </div>
-    </section>
 
-    <section class="card">
-      <h2>Resorts</h2>
-      <div id="resorts"></div>
-      <div class="row actions">
-        <button type="button" id="addResortBtn" class="btn">+ Add Resort</button>
-        <button type="button" id="clearResortsBtn" class="btn btn-secondary">Clear</button>
-        <button type="button" id="submitBtn" class="btn btn-primary">Submit</button>
-        <span id="status" class="status"></span>
+      <!-- Riders column headers -->
+      <div class="grid riders-head">
+        <div class="th">Age</div>
+        <div class="th">Category</div>
+        <div class="th"></div>
       </div>
-    </section>
 
-    <details class="card">
-      <summary>Raw Request</summary>
-      <pre id="rawReq" class="code">{}</pre>
-    </details>
+      <div id="riders" class="stack"></div>
 
-    <details class="card">
-      <summary>Raw Response</summary>
-      <pre id="rawRes" class="code">{}</pre>
-    </details>
+      <!-- Resorts -->
+      <div class="header-row row pad-top">
+        <h2 class="m0">Resorts</h2>
+        <div class="inline gap">
+          <button type="button" class="btn" id="addResortBtn">+ Add Resort</button>
+          <button type="button" class="btn btn-ghost" id="clearAllBtn">Clear</button>
+        </div>
+      </div>
 
-    <section class="card">
-      <h2>Results</h2>
-      <div id="results"></div>
-    </section>
+      <!-- Resorts column headers -->
+      <div class="grid resorts-head">
+        <div class="th">Resort</div>
+        <div class="th">Days</div>
+        <div class="th">Blackout OK</div>
+        <div class="th"></div>
+      </div>
 
-    <footer class="footer">© Snow Genius</footer>
-  </main>
+      <div id="resorts" class="stack"></div>
+
+      <!-- Status + Submit -->
+      <div class="row header-row">
+        <div class="status" id="status">Idle</div>
+        <button type="submit" class="btn btn-primary" id="submitBtn">Submit</button>
+      </div>
+    </form>
+
+    <div class="card">
+      <details>
+        <summary>Raw Request</summary>
+        <pre id="rawRequest" class="codeblock">{}</pre>
+      </details>
+      <details class="pad-top">
+        <summary>Raw Response</summary>
+        <pre id="rawResponse" class="codeblock">{}</pre>
+      </details>
+    </div>
+
+    <div class="card">
+      <div class="header-row row">
+        <h2 class="m0">Results</h2>
+        <div id="sortBar" class="small muted" style="display:none">Sorted by cost</div>
+      </div>
+      <div id="results-container" class="table-wrap"></div>
+    </div>
+
+    <footer class="footer small">© Snow Genius</footer>
+  </div>
 
   <script src="static/script.js" type="module"></script>
 </body>
