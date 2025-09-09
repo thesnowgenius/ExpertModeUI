@@ -1,126 +1,63 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>EXPERT MODE — Snow Genius</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" href="static/logo.png" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Snow Genius — Expert Mode</title>
+  <link rel="stylesheet" href="static/style.css"/>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root { --fg:#111827; --muted:#6B7280; --line:#E5E7EB; --ok:#10B981; --err:#EF4444; --bg:#ffffff; }
-    * { box-sizing: border-box; }
-    html, body { margin:0; padding:0; background:#fafafa; color:var(--fg); font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,Apple Color Emoji,Segoe UI Emoji; }
-    .container { max-width: 980px; margin: 24px auto 80px; padding: 0 16px; }
-    header { text-align:center; margin-bottom: 16px; }
-    header img { height: 52px; }
-    header h1 { margin: 8px 0 2px; font-size: 28px; font-weight: 700; }
-    header p { margin:0; color: var(--muted); font-size: 13px; }
-    .card { background:var(--bg); border:1px solid var(--line); border-radius:12px; padding: 14px; margin-bottom: 14px; }
-    .section-title { font-weight: 700; font-size: 18px; margin: 4px 0 12px; }
-    .row { display:flex; gap:10px; align-items:center; margin: 6px 0; }
-    .row > * { flex: 0 0 auto; }
-    input[type="text"], input[type="number"], select {
-      border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:14px; background:#fff; min-width: 120px;
-    }
-    input[type="number"] { width: 80px; }
-    .btn { border:1px solid var(--line); background:#fff; border-radius:10px; padding:7px 12px; font-weight:600; cursor:pointer; }
-    .btn-primary { background:#22C55E; color:#fff; border-color:#16A34A; }
-    .btn-ghost { background:#fff; }
-    .btn-danger { border-color:#ef4444; color:#ef4444; }
-    .pill-ok { color:#10B981; font-weight:700; }
-    .pill-err { color:#EF4444; font-weight:700; }
-    .grid { display:grid; grid-template-columns: 1fr auto auto auto auto; gap:10px; }
-    .resort-row input[type="text"] { width: 100%; }
-    details { border:1px dashed var(--line); border-radius:10px; padding: 8px 10px; background:#fff; }
-    summary { font-weight:600; cursor:pointer; }
-    pre { background:#0B1021; color:#E5E7EB; border-radius:8px; padding:10px; overflow:auto; font-size:12px; }
-    table { width:100%; border-collapse:collapse; }
-    th, td { padding:8px 10px; border-bottom:1px solid var(--line); font-size:14px; text-align:left; }
-    tfoot td { font-weight:700; }
-    .footer { text-align:center; color:var(--muted); font-size:12px; margin-top:24px; }
-    .hint { color:var(--muted); font-size:12px; }
-  </style>
+  <script>
+    // Configure this in production if your API is hosted on a different origin.
+    // Example: window.API_BASE = "https://api.snowgenius.example";
+    window.API_BASE = window.API_BASE || "";
+  </script>
 </head>
 <body>
-  <div class="container">
-    <header>
-      <img src="static/logo.png" alt="EXPERT MODE" />
+  <main class="container">
+    <header class="header">
+      <img src="static/logo.svg" alt="Expert Mode" class="logo"/>
       <h1>Snow Genius</h1>
-      <p>Expert Mode — find the lowest-cost pass or combo that matches your exact plan.</p>
+      <p class="sub">Expert Mode — find the lowest-cost pass or combo that matches your exact plan.</p>
     </header>
 
-    <!-- Riders -->
-    <div class="card" id="riders-card">
-      <div class="section-title">Riders</div>
-      <div class="row">
-        <div>
-          <div class="hint">Age</div>
-          <input id="age-input" type="number" min="1" placeholder="Age" value="39" />
-        </div>
-        <div>
-          <div class="hint">Category</div>
-          <select id="category-select">
-            <option value="none" selected>None</option>
-            <option value="military">Military</option>
-          </select>
-        </div>
-        <div style="flex:1"></div>
-        <button class="btn btn-ghost" id="add-rider-btn" disabled title="Future: multi-rider">+ Add Rider</button>
+    <section class="card">
+      <h2>Riders</h2>
+      <div id="riders"></div>
+      <div class="row actions">
+        <button type="button" id="addRiderBtn" class="btn">+ Add Rider</button>
       </div>
-    </div>
+    </section>
 
-    <!-- Resorts -->
-    <div class="card" id="resorts-card">
-      <div class="section-title">Resorts</div>
-
-      <div class="grid hint" style="margin-bottom:6px;">
-        <div>Resort</div>
-        <div>Days</div>
-        <div>Blackout OK</div>
-        <div style="width:1px;"></div>
-        <div style="width:1px;"></div>
+    <section class="card">
+      <h2>Resorts</h2>
+      <div id="resorts"></div>
+      <div class="row actions">
+        <button type="button" id="addResortBtn" class="btn">+ Add Resort</button>
+        <button type="button" id="clearResortsBtn" class="btn btn-secondary">Clear</button>
+        <button type="button" id="submitBtn" class="btn btn-primary">Submit</button>
+        <span id="status" class="status"></span>
       </div>
+    </section>
 
-      <div id="resort-rows"></div>
+    <details class="card">
+      <summary>Raw Request</summary>
+      <pre id="rawReq" class="code">{}</pre>
+    </details>
 
-      <div class="row" style="margin-top:8px;">
-        <button class="btn btn-ghost" id="add-resort">+ Add Resort</button>
-        <button class="btn btn-ghost" id="clear-resorts">Clear</button>
-        <div style="flex:1"></div>
-        <button class="btn btn-primary" id="submit-btn">Submit</button>
-      </div>
+    <details class="card">
+      <summary>Raw Response</summary>
+      <pre id="rawRes" class="code">{}</pre>
+    </details>
 
-      <div class="row" id="status-row" style="display:none;">
-        <span id="status-pill" class="pill-ok">OK</span>
-      </div>
-    </div>
-
-    <!-- Raw panes -->
-    <div class="card">
-      <details open>
-        <summary>Raw Request</summary>
-        <pre id="raw-request">{}</pre>
-      </details>
-    </div>
-
-    <div class="card">
-      <details open>
-        <summary>Raw Response</summary>
-        <pre id="raw-response">{}</pre>
-      </details>
-    </div>
-
-    <!-- Results -->
-    <div class="card">
-      <div class="section-title">Results</div>
+    <section class="card">
+      <h2>Results</h2>
       <div id="results"></div>
-    </div>
+    </section>
 
-    <div class="footer">© Snow Genius</div>
-  </div>
+    <footer class="footer">© Snow Genius</footer>
+  </main>
 
-  <script src="static/script.js"></script>
+  <script src="static/script.js" type="module"></script>
 </body>
 </html>
