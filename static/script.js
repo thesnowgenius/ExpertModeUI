@@ -1,19 +1,24 @@
-/* Snow Genius — Expert Mode (Multi-only)
-   - Posts to POST {API_BASE}/score
-   - Canonical payload: { mode: "multi", riders: [...], resort_days: [{resort_id, days, blackout_ok}] }
+/* Snow Genius — Expert Mode (Multi-only, production)
+   - Posts to Render backend with endpoint fallbacks to survive BE route drift.
+   - Canonical payload: { mode:"multi", riders:[{age,category}], resort_days:[{resort_id,days,blackout_ok}] }
    - Uses your REAL resorts.json (no invented IDs)
 */
 
 const API_BASE = (window.API_BASE || "").replace(/\/$/, "");
-const API_URL  = `${API_BASE}/score`;
 const RESORTS_LIST_URL = window.RESORTS_LIST_URL || "static/resorts.json";
 const FORCED_MODE = "multi";
+
+// Endpoint choice: override or use smart fallback
+const ENDPOINT_OVERRIDE = window.API_ENDPOINT_OVERRIDE || null;
+const ENDPOINT_CANDIDATES = ENDPOINT_OVERRIDE
+  ? [ENDPOINT_OVERRIDE]
+  : ["/score", "/score_plan", "/score_multi_pass"];
 
 /* ---------------- State ---------------- */
 const state = {
   riders: [],
-  resorts: [], // { id, resort_id, label, days, blackoutOk }
-  resortsIndex: [], // [{ resort_id, resort_name, state }]
+  resorts: [],           // { id, resort_id, label, days, blackoutOk }
+  resortsIndex: [],      // [{ resort_id, resort_name, state }]
 };
 
 /* ---------------- DOM ---------------- */
@@ -35,14 +40,42 @@ async function safeJson(res) {
   catch { throw new Error(`Non-JSON response (HTTP ${res.status}): ${text.slice(0,200)}…`); }
 }
 
+/* Smart POST with endpoint fallback */
+async function postWithFallback(payload) {
+  const attempts = [];
+  for (const path of ENDPOINT_CANDIDATES) {
+    const url = `${API_BASE}${path}`;
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const bodyText = await res.text();
+      if (!res.ok) {
+        attempts.push({ path, status: res.status, body: bodyText.slice(0,250) });
+        continue;
+      }
+      try {
+        return { endpoint: path, json: JSON.parse(bodyText) };
+      } catch {
+        attempts.push({ path, status: res.status, body: `Non-JSON: ${bodyText.slice(0,250)}` });
+      }
+    } catch (e) {
+      attempts.push({ path, error: String(e) });
+    }
+  }
+  const diag = { error: "All endpoints failed", base: API_BASE, attempts };
+  throw new Error(JSON.stringify(diag, null, 2));
+}
+
 /* ---------------- Boot data ---------------- */
 async function loadResortsIndex() {
-  // resorts.json must have resort_id / resort_name / state (your schema)
   const res = await fetch(RESORTS_LIST_URL, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to load resorts.json: HTTP ${res.status}`);
   const list = await res.json();
   state.resortsIndex = list.map(r => ({
-    resort_id: r.resort_id,
+    resort_id: r.resort_id,                // use exactly as provided
     resort_name: r.resort_name || "",
     state: r.state || ""
   }));
@@ -61,7 +94,6 @@ function updateRider(id, patch) {
   const node = state.riders.find(x => x.id === id);
   if (node) Object.assign(node, patch);
 }
-
 function riderRow(r) {
   const row = document.createElement("div");
   row.className = "grid row";
@@ -74,7 +106,6 @@ function riderRow(r) {
       <option ${r.category==="Nurse"?"selected":""}>Nurse</option>
     </select>
     <button type="button" class="btn btn-ghost" data-action="remove">Remove</button>`;
-
   row.addEventListener("input", e => {
     const k = e.target.dataset.k;
     if (!k) return;
@@ -84,7 +115,6 @@ function riderRow(r) {
   row.querySelector('[data-action="remove"]').addEventListener("click", () => removeRider(r.id));
   return row;
 }
-
 function renderRiders() {
   ridersEl.innerHTML = "";
   if (state.riders.length === 0) addRider();
@@ -104,7 +134,6 @@ function updateResort(id, patch) {
   const node = state.resorts.find(x => x.id === id);
   if (node) Object.assign(node, patch);
 }
-
 function resortRow(r) {
   const row = document.createElement("div");
   row.className = "grid row";
@@ -146,7 +175,6 @@ function resortRow(r) {
     updateResort(r.id, { label: nameInput.value, resort_id: "" });
     renderSuggestions(nameInput.value);
   }));
-
   nameInput.addEventListener("keydown", e => {
     const items = Array.from(list.children);
     if (list.hidden || !["ArrowDown", "ArrowUp", "Enter", "Escape"].includes(e.key)) return;
@@ -159,7 +187,6 @@ function resortRow(r) {
     else if (e.key === "Escape") list.hidden = true;
     else items[idx]?.classList.add("active");
   });
-
   nameInput.addEventListener("blur", () => setTimeout(() => (list.hidden = true), 120));
 
   row.addEventListener("input", e => {
@@ -172,7 +199,6 @@ function resortRow(r) {
   row.querySelector('[data-action="remove"]').addEventListener("click", () => removeResort(r.id));
   return row;
 }
-
 function renderResorts() {
   resortsEl.innerHTML = "";
   if (state.resorts.length === 0) addResort();
@@ -228,23 +254,15 @@ async function handleSubmit(e) {
   statusEl.textContent = "Submitting…";
 
   try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}…`);
-    }
-
-    const json = await safeJson(res);
-    rawResEl.textContent = JSON.stringify(json, null, 2);
+    const { endpoint, json } = await postWithFallback(payload);
+    rawResEl.textContent = JSON.stringify({ endpoint_used: endpoint, response: json }, null, 2);
     renderResults(json);
     statusEl.textContent = "OK";
   } catch (err) {
-    rawResEl.textContent = JSON.stringify({ error: String(err) }, null, 2);
+    let diag;
+    try { diag = JSON.parse(String(err.message)); }
+    catch { diag = { error: String(err) }; }
+    rawResEl.textContent = JSON.stringify(diag, null, 2);
     statusEl.textContent = "Error";
   }
 }
