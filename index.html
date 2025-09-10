@@ -6,15 +6,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="static/style.css" />
   <script>
-    /* >>> IMPORTANT <<<
-       Keep this pointed at your Render backend, not GitHub Pages.
-       If you need to test locally, set this to "http://127.0.0.1:8000".
-    */
-    window.API_BASE = "https://pass-picker-expert-mode.onrender.com";
-    // Optional: force a single endpoint like "/score_plan" for debugging
-    // window.API_ENDPOINT_OVERRIDE = "/score_plan";
+    // Hardwire to MULTI service + route (no fallbacks)
+    window.API_BASE = "https://pass-picker-expert-mode-multi.onrender.com";
+    window.API_ENDPOINT = "/score_multi_pass";
 
-    // Your complete, real resorts list (no invented IDs)
+    // Use your full real resorts list
     window.RESORTS_LIST_URL = "static/resorts.json";
   </script>
   <style>
@@ -72,7 +68,6 @@
     </header>
 
     <form id="expertForm" class="card" autocomplete="off">
-      <!-- Riders -->
       <div class="header-row row">
         <h2 class="m0">Riders</h2>
         <div class="inline gap">
@@ -87,7 +82,6 @@
       </div>
       <div id="riders" class="stack"></div>
 
-      <!-- Resorts -->
       <div class="header-row row pad-top">
         <h2 class="m0">Resorts</h2>
         <div class="inline gap">
