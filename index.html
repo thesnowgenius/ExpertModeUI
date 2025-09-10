@@ -1,51 +1,88 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Snow Genius • Expert Mode</title>
-  <link rel="stylesheet" href="assets/styles.css">
+  <meta charset="UTF-8" />
+  <title>Snow Genius — Expert Mode</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="static/style.css" />
 </head>
 <body>
-  <header>
-    <h1>Expert Mode (Multi)</h1>
-    <p class="sub">Find the lowest-cost pass or combo that meets your days.</p>
-  </header>
+  <div class="wrap">
+    <header class="hero">
+      <img src="static/logo.png" alt="Snow Genius" class="logo" />
+      <h1>Snow Genius</h1>
+      <p class="sub">Expert Mode — find the lowest-cost pass or combo that matches your exact plan.</p>
+    </header>
 
-  <main>
-    <section class="controls">
-      <div class="riders">
-        <h2>Riders</h2>
-        <div id="riders"></div>
-        <button id="addRider">+ Add rider</button>
+    <form id="expertForm" class="card">
+      <!-- Riders -->
+      <div class="header-row row">
+        <h2 class="m0">Riders</h2>
+        <div class="inline gap">
+          <button type="button" class="btn" id="addRiderBtn">+ Add Rider</button>
+        </div>
       </div>
 
-      <div class="resorts">
-        <h2>Resorts & Days</h2>
-        <div id="resorts"></div>
-        <button id="addResort">+ Add resort</button>
+      <!-- Riders column header (static) -->
+      <div class="grid riders-head">
+        <div class="th">Age</div>
+        <div class="th">Category</div>
+        <div class="th"></div>
       </div>
 
-      <div class="constraints">
-        <h2>Constraints</h2>
-        <label><input type="checkbox" id="no_weekends"> No Weekends</label>
-        <label><input type="checkbox" id="no_blackouts"> No Blackout Dates</label>
+      <div id="riders" class="stack"></div>
+
+      <!-- Resorts -->
+      <div class="header-row row pad-top">
+        <h2 class="m0">Resorts</h2>
+        <div class="inline gap">
+          <button type="button" class="btn" id="addResortBtn">+ Add Resort</button>
+          <button type="button" class="btn btn-ghost" id="clearAllBtn">Clear</button>
+        </div>
       </div>
 
-      <div class="actions">
-        <button id="solve">Solve</button>
-        <button id="reset">Reset</button>
+      <!-- Resorts column header (static) -->
+      <div class="grid resorts-head">
+        <div class="th">Resort</div>
+        <div class="th">Days</div>
+        <div class="th">Blackout OK</div>
       </div>
-    </section>
 
-    <section class="results">
-      <h2>Results</h2>
-      <pre id="rawRequest"></pre>
-      <pre id="rawResponse"></pre>
-      <div id="solutions"></div>
-    </section>
-  </main>
+      <div id="resorts" class="stack"></div>
 
-  <script src="assets/script.js"></script>
+      <!-- Status + Submit -->
+      <div class="row header-row">
+        <div class="status" id="status">Idle</div>
+        <button type="submit" class="btn btn-primary" id="submitBtn">Submit</button>
+      </div>
+    </form>
+
+    <!-- Raw panes -->
+    <div class="card">
+      <details>
+        <summary>Raw Request</summary>
+        <pre id="rawRequest" class="codeblock">{}</pre>
+      </details>
+      <details class="pad-top">
+        <summary>Raw Response</summary>
+        <pre id="rawResponse" class="codeblock">{}</pre>
+      </details>
+    </div>
+
+    <!-- Results -->
+    <div class="card">
+      <div class="header-row row">
+        <h2 class="m0">Results</h2>
+        <div id="sortBar" class="small muted" style="display:none">Sorted by cost</div>
+      </div>
+      <div id="results-container" class="table-wrap"></div>
+    </div>
+
+    <footer class="footer small">© Snow Genius</footer>
+  </div>
+
+  <script src="static/script.js"></script>
+  <script src="results.js"></script>
+  <script src="autoResize.js"></script>
 </body>
 </html>
