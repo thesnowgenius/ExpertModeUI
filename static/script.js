@@ -29,8 +29,8 @@ async function loadResortsIndex() {
     const res = await fetch("static/resorts.json", { cache: "no-store" });
     const list = await res.json();
     state.resortsIndex = list.map(r => ({
-      id: r.id || r.code || r.name,
-      name: r.name,
+      id: r.id || r.code || r.resort_id || r.name || r.resort_name,
+      name: r.name || r.resort_name || r.id || r.resort_id,
       state: r.state || r.region || ""
     }));
   } catch (err) {
