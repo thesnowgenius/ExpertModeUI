@@ -1,130 +1,51 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Snow Genius — Expert Mode</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="static/style.css" />
-  <script>
-    // Hardwire to MULTI service + route (no fallbacks)
-    window.API_BASE = "https://pass-picker-expert-mode-multi.onrender.com";
-    window.API_ENDPOINT = "/score_multi_pass";
-
-    // Use your full real resorts list
-    window.RESORTS_LIST_URL = "static/resorts.json";
-  </script>
-  <style>
-    :root { --pad: 12px; --gap: 10px; --radius: 8px; --muted:#667; }
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin:0; background:#f6f7fb; color:#111; }
-    .wrap { max-width: 1000px; margin: 0 auto; padding: 24px; }
-    .hero { text-align:center; margin: 8px 0 16px; }
-    .logo { height: 22px; opacity:.85; }
-    h1 { margin:.25rem 0 .5rem; font-size: 28px; }
-    .sub { margin:0; color:#555; }
-    .card { background:#fff; border-radius: var(--radius); padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.08); margin: 14px 0; }
-    .card-sub { margin-top: 10px; }
-    .row { display:flex; align-items:center; gap: var(--gap); }
-    .header-row { justify-content: space-between; }
-    .grid { display:grid; grid-template-columns: 1fr 160px 120px 120px; gap: var(--gap); align-items:center; }
-    .riders-head { grid-template-columns: 160px 200px 120px; color: var(--muted); margin-top:8px; }
-    .resorts-head { color: var(--muted); margin-top:8px; }
-    .stack > .row { margin-top: 8px; }
-    .input { padding:10px 12px; border: 1px solid #e1e3ea; border-radius:6px; width:100%; outline:none; }
-    .input:focus { border-color:#8aa7ff; box-shadow: 0 0 0 3px rgba(79,130,255,.15); }
-    .btn { padding:9px 12px; border-radius:6px; border:1px solid #d7daea; background:#fff; cursor:pointer; }
-    .btn:hover { background:#f2f4fb; }
-    .btn-ghost { background:transparent; border-color:transparent; color:#444; }
-    .btn-primary { background:#2f6bff; color:#fff; border-color:#2f6bff; }
-    .btn-primary:hover { filter:brightness(.95); }
-    .checkbox { display:flex; align-items:center; gap:6px; }
-    .typeahead { position:relative; }
-    .suggestions { position:absolute; top: 100%; left:0; right:0; z-index:20; background:#fff; border:1px solid #e1e3ea; border-radius:6px; margin:4px 0 0; padding:4px 0; list-style:none; max-height:240px; overflow:auto; }
-    .suggestions li { padding:8px 10px; cursor:pointer; }
-    .suggestions li:hover, .suggestions li.active { background:#f1f4ff; }
-    .status { color:#666; }
-    .table-wrap { overflow:auto; }
-    table { width:100%; border-collapse: collapse; }
-    th, td { text-align:left; padding:10px 8px; border-bottom:1px solid #eee; }
-    .codeblock { background:#0f172a; color:#e2e8f0; padding:12px; border-radius:8px; overflow:auto; }
-    .small { font-size: 12px; }
-    .muted { color:#768; }
-    .pad-top { margin-top: 16px; }
-    .m0 { margin:0; }
-    .inline { display:flex; align-items:center; }
-    .gap { gap:8px; }
-    .footer { text-align:center; color:#889; padding: 16px 0; }
-    @media (max-width: 840px) {
-      .grid { grid-template-columns: 1fr; }
-      .riders-head, .resorts-head { display:none; }
-    }
-  </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Snow Genius • Expert Mode</title>
+  <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body>
-  <div class="wrap">
-    <header class="hero">
-      <img src="static/logo.svg" alt="Expert Mode" class="logo" />
-      <h1>Snow Genius</h1>
-      <p class="sub">Expert Mode — find the lowest-cost pass or combo that matches your exact plan.</p>
-    </header>
+  <header>
+    <h1>Expert Mode (Multi)</h1>
+    <p class="sub">Find the lowest-cost pass or combo that meets your days.</p>
+  </header>
 
-    <form id="expertForm" class="card" autocomplete="off">
-      <div class="header-row row">
-        <h2 class="m0">Riders</h2>
-        <div class="inline gap">
-          <button type="button" class="btn" id="addRiderBtn">+ Add Rider</button>
-        </div>
+  <main>
+    <section class="controls">
+      <div class="riders">
+        <h2>Riders</h2>
+        <div id="riders"></div>
+        <button id="addRider">+ Add rider</button>
       </div>
 
-      <div class="grid riders-head">
-        <div class="th">Age</div>
-        <div class="th">Category</div>
-        <div class="th"></div>
-      </div>
-      <div id="riders" class="stack"></div>
-
-      <div class="header-row row pad-top">
-        <h2 class="m0">Resorts</h2>
-        <div class="inline gap">
-          <button type="button" class="btn" id="addResortBtn">+ Add Resort</button>
-          <button type="button" class="btn btn-ghost" id="clearAllBtn">Clear</button>
-        </div>
+      <div class="resorts">
+        <h2>Resorts & Days</h2>
+        <div id="resorts"></div>
+        <button id="addResort">+ Add resort</button>
       </div>
 
-      <div class="grid resorts-head">
-        <div class="th">Resort</div>
-        <div class="th">Days</div>
-        <div class="th">Blackout OK</div>
-        <div class="th"></div>
-      </div>
-      <div id="resorts" class="stack"></div>
-
-      <div class="row header-row">
-        <div class="status" id="status">Idle</div>
-        <button type="submit" class="btn btn-primary" id="submitBtn">Submit</button>
+      <div class="constraints">
+        <h2>Constraints</h2>
+        <label><input type="checkbox" id="no_weekends"> No Weekends</label>
+        <label><input type="checkbox" id="no_blackouts"> No Blackout Dates</label>
       </div>
 
-      <details class="card-sub">
-        <summary>Raw Request</summary>
-        <pre id="rawRequest" class="codeblock">{}</pre>
-      </details>
-
-      <details class="card-sub">
-        <summary>Raw Response</summary>
-        <pre id="rawResponse" class="codeblock">{}</pre>
-      </details>
-    </form>
-
-    <div class="card">
-      <div class="header-row row">
-        <h2 class="m0">Results</h2>
-        <div id="sortBar" class="small muted" style="display:none">Sorted by cost</div>
+      <div class="actions">
+        <button id="solve">Solve</button>
+        <button id="reset">Reset</button>
       </div>
-      <div id="results-container" class="table-wrap"></div>
-    </div>
+    </section>
 
-    <footer class="footer small">© Snow Genius</footer>
-  </div>
+    <section class="results">
+      <h2>Results</h2>
+      <pre id="rawRequest"></pre>
+      <pre id="rawResponse"></pre>
+      <div id="solutions"></div>
+    </section>
+  </main>
 
-  <script src="static/script.js" type="module"></script>
+  <script src="assets/script.js"></script>
 </body>
 </html>
