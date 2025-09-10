@@ -6,15 +6,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="stylesheet" href="static/style.css" />
   <script>
-    /* Set this if your API is on a different origin. Example:
-       window.API_BASE = "https://api.snowgenius.example"; */
+    // === Deploy config (edit per env) ========================================
+    // If your API is same-origin, leave empty string:
     window.API_BASE = window.API_BASE || "";
+
+    // Path to your REAL resorts JSON (must expose resort_id/resort_name/state).
+    // Example assumes same-origin static hosting:
+    window.RESORTS_LIST_URL = window.RESORTS_LIST_URL || "static/resorts.json";
+    // =========================================================================
   </script>
 </head>
 <body>
   <div class="wrap">
     <header class="hero">
-      <img src="static/logo.png" alt="Snow Genius" class="logo" />
+      <img src="static/logo.svg" alt="Expert Mode" class="logo" />
       <h1>Snow Genius</h1>
       <p class="sub">Expert Mode — find the lowest-cost pass or combo that matches your exact plan.</p>
     </header>
@@ -28,13 +33,11 @@
         </div>
       </div>
 
-      <!-- Riders column headers -->
       <div class="grid riders-head">
         <div class="th">Age</div>
         <div class="th">Category</div>
         <div class="th"></div>
       </div>
-
       <div id="riders" class="stack"></div>
 
       <!-- Resorts -->
@@ -46,17 +49,14 @@
         </div>
       </div>
 
-      <!-- Resorts column headers -->
       <div class="grid resorts-head">
         <div class="th">Resort</div>
         <div class="th">Days</div>
         <div class="th">Blackout OK</div>
         <div class="th"></div>
       </div>
-
       <div id="resorts" class="stack"></div>
 
-      <!-- Status + Submit -->
       <div class="row header-row">
         <div class="status" id="status">Idle</div>
         <button type="submit" class="btn btn-primary" id="submitBtn">Submit</button>
@@ -64,11 +64,11 @@
     </form>
 
     <div class="card">
-      <details>
+      <details open>
         <summary>Raw Request</summary>
         <pre id="rawRequest" class="codeblock">{}</pre>
       </details>
-      <details class="pad-top">
+      <details class="pad-top" open>
         <summary>Raw Response</summary>
         <pre id="rawResponse" class="codeblock">{}</pre>
       </details>

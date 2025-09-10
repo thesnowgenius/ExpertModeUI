@@ -1,13 +1,14 @@
-/* Snow Genius – Stable 4 UI (forced multi mode) */
+/* Snow Genius – Multi-only, REAL resorts list, resorts stored by resort_id */
 const API_BASE = window.API_BASE || "";
-const API_URL = (API_BASE.replace(/\/$/, "") + "/api/plan").replace(/\/+/, "/");
+const API_URL = (API_BASE.replace(/\/$/, "") + "/score_plan").replace(/\/+/, "/");
+const RESORTS_LIST_URL = window.RESORTS_LIST_URL || "static/resorts.json"; // real data
 const FORCED_MODE = "multi";
 
 /* -------- State -------- */
 const state = {
   riders: [],
-  resorts: [],
-  resortsIndex: [], // [{id,name,state}]
+  resorts: [], // { id, resort_id, label, days, blackoutOk }
+  resortsIndex: [], // [{ resort_id, resort_name, state }]
 };
 
 /* -------- DOM -------- */
@@ -21,22 +22,23 @@ const statusEl  = document.getElementById("status");
 /* -------- Utils -------- */
 const uid = () => Math.random().toString(36).slice(2, 9);
 const clampInt = (v, min, max) => Math.max(min, Math.min(max, parseInt(v || 0, 10)));
-const debounce = (fn, ms = 150) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const debounce = (fn, ms = 120) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
+const safeJson = async (res) => {
+  const text = await res.text();
+  try { return JSON.parse(text); }
+  catch { throw new Error(`Non-JSON response (HTTP ${res.status})`); }
+};
 
-/* -------- Boot data (typeahead) -------- */
+/* -------- Boot data (from your real resorts.json) -------- */
 async function loadResortsIndex() {
-  try {
-    const res = await fetch("static/resorts.json", { cache: "no-store" });
-    const list = await res.json();
-    state.resortsIndex = list.map(r => ({
-      id: r.id || r.code || r.resort_id || r.name || r.resort_name,
-      name: r.name || r.resort_name || r.id || r.resort_id,
-      state: r.state || r.region || ""
-    }));
-  } catch (err) {
-    console.error("Failed loading resorts.json", err);
-    state.resortsIndex = [];
-  }
+  // resorts.json must have resort_id / resort_name / state  (your real schema)
+  const res = await fetch(RESORTS_LIST_URL, { cache: "no-store" });
+  const list = await res.json();
+  state.resortsIndex = list.map(r => ({
+    resort_id: r.resort_id,              // canonical id (do not invent)
+    resort_name: r.resort_name || "",    // human label
+    state: r.state || ""                 // state/region code
+  }));
 }
 
 /* -------- Riders -------- */
@@ -58,21 +60,14 @@ function riderRow(r) {
   row.innerHTML = `
     <input type="number" min="0" max="120" placeholder="Age" value="${r.age ?? ""}" data-k="age" class="input" />
     <select data-k="category" class="select">
-      <option>None</option>
-      <option>Child</option>
-      <option>Teen</option>
-      <option>Adult</option>
-      <option>Senior</option>
+      <option>None</option><option>Child</option><option>Teen</option><option>Adult</option><option>Senior</option>
     </select>
-    <button type="button" class="btn btn-ghost" data-action="remove">Remove</button>
-  `;
+    <button type="button" class="btn btn-ghost" data-action="remove">Remove</button>`;
   row.querySelector('[data-k="category"]').value = r.category || "None";
   row.addEventListener("input", e => {
     const k = e.target.dataset.k;
     if (!k) return;
-    const v = k === "age"
-      ? (e.target.value === "" ? "" : clampInt(e.target.value, 0, 120))
-      : e.target.value;
+    const v = k === "age" ? (e.target.value === "" ? "" : clampInt(e.target.value, 0, 120)) : e.target.value;
     updateRider(r.id, { [k]: v });
   });
   row.querySelector('[data-action="remove"]').addEventListener("click", () => removeRider(r.id));
@@ -85,7 +80,7 @@ function renderRiders() {
 }
 
 /* -------- Resorts -------- */
-function addResort(r = { id: uid(), name: "", days: 1, blackoutOk: false }) {
+function addResort(r = { id: uid(), resort_id: "", label: "", days: 1, blackoutOk: false }) {
   state.resorts.push(r);
   renderResorts();
 }
@@ -103,7 +98,7 @@ function resortRow(r) {
   const suggId = uid();
   row.innerHTML = `
     <div style="position:relative">
-      <input type="text" class="input" placeholder="Start typing… e.g. Loon, NH" value="${r.name}" data-k="name"
+      <input type="text" class="input" placeholder="Start typing… e.g. Loon" value="${r.label}" data-k="label"
              aria-autocomplete="list" aria-expanded="false" aria-owns="${suggId}" />
       <div class="suggestion-list" id="${suggId}" hidden></div>
     </div>
@@ -112,27 +107,31 @@ function resortRow(r) {
     <button type="button" class="btn btn-ghost" data-action="remove">Remove</button>
   `;
 
-  const nameInput = row.querySelector('[data-k="name"]');
+  const nameInput = row.querySelector('[data-k="label"]');
   const list = row.querySelector(".suggestion-list");
 
   function renderSuggestions(q) {
     list.innerHTML = "";
     if (!q || q.length < 1) { list.hidden = true; return; }
     const norm = q.toLowerCase();
+    // search by resort_name and state code
     const matches = state.resortsIndex
-      .filter(x => x.name.toLowerCase().includes(norm) || (x.state && x.state.toLowerCase().includes(norm)))
-      .slice(0, 12);
+      .filter(x =>
+        x.resort_name.toLowerCase().includes(norm) ||
+        (x.state && String(x.state).toLowerCase().includes(norm))
+      )
+      .slice(0, 20);
 
     if (matches.length === 0) { list.hidden = true; return; }
-
     matches.forEach((m, i) => {
       const item = document.createElement("div");
       item.className = "suggestion-item" + (i === 0 ? " active" : "");
-      item.textContent = m.name + (m.state ? `, ${m.state}` : "");
+      item.textContent = `${m.resort_name}${m.state ? ", " + m.state : ""}`;
+      item.dataset.resortId = m.resort_id;
       item.addEventListener("mousedown", e => {
-        e.preventDefault(); // before blur
+        e.preventDefault(); // fire before blur
         nameInput.value = item.textContent;
-        updateResort(r.id, { name: nameInput.value });
+        updateResort(r.id, { resort_id: item.dataset.resortId, label: nameInput.value });
         list.hidden = true;
       });
       list.appendChild(item);
@@ -141,9 +140,9 @@ function resortRow(r) {
   }
 
   nameInput.addEventListener("input", debounce(() => {
-    updateResort(r.id, { name: nameInput.value });
+    updateResort(r.id, { label: nameInput.value, resort_id: "" }); // clear id until a suggestion is chosen
     renderSuggestions(nameInput.value);
-  }, 100));
+  }));
 
   nameInput.addEventListener("keydown", e => {
     const items = Array.from(list.children);
@@ -184,24 +183,36 @@ async function handleSubmit(e) {
     age: r.age === "" ? null : Number(r.age),
     category: r.category
   }));
+
+  // Only submit entries with a confirmed resort_id
   const resorts = state.resorts
-    .filter(r => r.name && r.days > 0)
-    .map(r => ({ name: r.name, days: Number(r.days), blackoutOk: !!r.blackoutOk }));
+    .filter(r => r.resort_id && r.days > 0)
+    .map(r => ({ resort_id: r.resort_id, days: Number(r.days), blackoutOk: !!r.blackoutOk }));
 
   const payload = { mode: FORCED_MODE, riders, resorts };
   rawReqEl.textContent = JSON.stringify(payload, null, 2);
 
-  if (resorts.length === 0) { statusEl.textContent = "Please add a resort"; return; }
+  if (resorts.length === 0) { statusEl.textContent = "Please pick a resort from the list"; return; }
 
   statusEl.textContent = "Submitting…";
   try {
-    const res  = await fetch(API_URL, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    const json = await res.json();
+    const res  = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`HTTP ${res.status}: ${text.slice(0, 200)}…`);
+    }
+
+    const json = await safeJson(res);
     rawResEl.textContent = JSON.stringify(json, null, 2);
     renderResults(json);
-    statusEl.textContent = res.ok ? "OK" : "Error";
+    statusEl.textContent = "OK";
   } catch (err) {
-    rawResEl.textContent = JSON.stringify({ error: err.message }, null, 2);
+    rawResEl.textContent = JSON.stringify({ error: String(err) }, null, 2);
     statusEl.textContent = "Network error";
   }
 }
