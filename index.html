@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Snow Genius • Expert Mode</title>
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+  <header>
+    <h1>Expert Mode (Multi)</h1>
+    <p class="sub">Find the lowest-cost pass or combo that meets your days.</p>
+  </header>
+
+  <main>
+    <section class="controls">
+      <div class="riders">
+        <h2>Riders</h2>
+        <div id="riders"></div>
+        <button id="addRider">+ Add rider</button>
+      </div>
+
+      <div class="resorts">
+        <h2>Resorts & Days</h2>
+        <div id="resorts"></div>
+        <button id="addResort">+ Add resort</button>
+      </div>
+
+      <div class="constraints">
+        <h2>Constraints</h2>
+        <label><input type="checkbox" id="no_weekends"> No Weekends</label>
+        <label><input type="checkbox" id="no_blackouts"> No Blackout Dates</label>
+      </div>
+
+      <div class="actions">
+        <button id="solve">Solve</button>
+        <button id="reset">Reset</button>
+      </div>
+    </section>
+
+    <section class="results">
+      <h2>Results</h2>
+      <pre id="rawRequest"></pre>
+      <pre id="rawResponse"></pre>
+      <div id="solutions"></div>
+    </section>
+  </main>
+
+  <script src="assets/script.js"></script>
+</body>
+</html>
