@@ -1,47 +1,54 @@
-/* Snow Genius – Multi-only, REAL resorts list, resorts stored by resort_id */
-const API_BASE = window.API_BASE || "";
-const API_URL = (API_BASE.replace(/\/$/, "") + "/score_plan").replace(/\/+/, "/");
-const RESORTS_LIST_URL = window.RESORTS_LIST_URL || "static/resorts.json"; // real data
+/* Snow Genius — Expert Mode (Multi-only)
+   - Posts to POST {API_BASE}/score
+   - Canonical payload: { mode: "multi", riders: [...], resort_days: [{resort_id, days, blackout_ok}] }
+   - Uses your REAL resorts.json (no invented IDs)
+*/
+
+const API_BASE = (window.API_BASE || "").replace(/\/$/, "");
+const API_URL  = `${API_BASE}/score`;
+const RESORTS_LIST_URL = window.RESORTS_LIST_URL || "static/resorts.json";
 const FORCED_MODE = "multi";
 
-/* -------- State -------- */
+/* ---------------- State ---------------- */
 const state = {
   riders: [],
   resorts: [], // { id, resort_id, label, days, blackoutOk }
   resortsIndex: [], // [{ resort_id, resort_name, state }]
 };
 
-/* -------- DOM -------- */
+/* ---------------- DOM ---------------- */
 const ridersEl  = document.getElementById("riders");
 const resortsEl = document.getElementById("resorts");
+const statusEl  = document.getElementById("status");
 const rawReqEl  = document.getElementById("rawRequest");
 const rawResEl  = document.getElementById("rawResponse");
 const resultsEl = document.getElementById("results-container");
-const statusEl  = document.getElementById("status");
 
-/* -------- Utils -------- */
+/* ---------------- Utils ---------------- */
 const uid = () => Math.random().toString(36).slice(2, 9);
 const clampInt = (v, min, max) => Math.max(min, Math.min(max, parseInt(v || 0, 10)));
 const debounce = (fn, ms = 120) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
-const safeJson = async (res) => {
+
+async function safeJson(res) {
   const text = await res.text();
   try { return JSON.parse(text); }
-  catch { throw new Error(`Non-JSON response (HTTP ${res.status})`); }
-};
+  catch { throw new Error(`Non-JSON response (HTTP ${res.status}): ${text.slice(0,200)}…`); }
+}
 
-/* -------- Boot data (from your real resorts.json) -------- */
+/* ---------------- Boot data ---------------- */
 async function loadResortsIndex() {
-  // resorts.json must have resort_id / resort_name / state  (your real schema)
+  // resorts.json must have resort_id / resort_name / state (your schema)
   const res = await fetch(RESORTS_LIST_URL, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Failed to load resorts.json: HTTP ${res.status}`);
   const list = await res.json();
   state.resortsIndex = list.map(r => ({
-    resort_id: r.resort_id,              // canonical id (do not invent)
-    resort_name: r.resort_name || "",    // human label
-    state: r.state || ""                 // state/region code
+    resort_id: r.resort_id,
+    resort_name: r.resort_name || "",
+    state: r.state || ""
   }));
 }
 
-/* -------- Riders -------- */
+/* ---------------- Riders ---------------- */
 function addRider(r = { id: uid(), age: "", category: "None" }) {
   state.riders.push(r);
   renderRiders();
@@ -51,19 +58,23 @@ function removeRider(id) {
   renderRiders();
 }
 function updateRider(id, patch) {
-  Object.assign(state.riders.find(x => x.id === id), patch);
+  const node = state.riders.find(x => x.id === id);
+  if (node) Object.assign(node, patch);
 }
 
 function riderRow(r) {
   const row = document.createElement("div");
-  row.className = "grid riders-row";
+  row.className = "grid row";
   row.innerHTML = `
-    <input type="number" min="0" max="120" placeholder="Age" value="${r.age ?? ""}" data-k="age" class="input" />
-    <select data-k="category" class="select">
-      <option>None</option><option>Child</option><option>Teen</option><option>Adult</option><option>Senior</option>
+    <input data-k="age" class="input" type="number" placeholder="Age" value="${r.age ?? ""}" min="0" max="120"/>
+    <select data-k="category" class="input">
+      <option ${r.category==="None"?"selected":""}>None</option>
+      <option ${r.category==="Military"?"selected":""}>Military</option>
+      <option ${r.category==="Student"?"selected":""}>Student</option>
+      <option ${r.category==="Nurse"?"selected":""}>Nurse</option>
     </select>
     <button type="button" class="btn btn-ghost" data-action="remove">Remove</button>`;
-  row.querySelector('[data-k="category"]').value = r.category || "None";
+
   row.addEventListener("input", e => {
     const k = e.target.dataset.k;
     if (!k) return;
@@ -73,13 +84,14 @@ function riderRow(r) {
   row.querySelector('[data-action="remove"]').addEventListener("click", () => removeRider(r.id));
   return row;
 }
+
 function renderRiders() {
   ridersEl.innerHTML = "";
   if (state.riders.length === 0) addRider();
   state.riders.forEach(r => ridersEl.appendChild(riderRow(r)));
 }
 
-/* -------- Resorts -------- */
+/* ---------------- Resorts ---------------- */
 function addResort(r = { id: uid(), resort_id: "", label: "", days: 1, blackoutOk: false }) {
   state.resorts.push(r);
   renderResorts();
@@ -89,58 +101,49 @@ function removeResort(id) {
   renderResorts();
 }
 function updateResort(id, patch) {
-  Object.assign(state.resorts.find(x => x.id === id), patch);
+  const node = state.resorts.find(x => x.id === id);
+  if (node) Object.assign(node, patch);
 }
 
 function resortRow(r) {
   const row = document.createElement("div");
-  row.className = "grid resorts-row";
-  const suggId = uid();
+  row.className = "grid row";
   row.innerHTML = `
-    <div style="position:relative">
-      <input type="text" class="input" placeholder="Start typing… e.g. Loon" value="${r.label}" data-k="label"
-             aria-autocomplete="list" aria-expanded="false" aria-owns="${suggId}" />
-      <div class="suggestion-list" id="${suggId}" hidden></div>
+    <div class="typeahead">
+      <input class="input" data-k="label" type="text" placeholder="Start typing a resort..." value="${r.label || ""}"/>
+      <ul class="suggestions" id="sugg-${r.id}" hidden></ul>
     </div>
-    <input type="number" min="1" max="60" value="${r.days}" data-k="days" class="input" />
-    <input type="checkbox" data-k="blackoutOk" ${r.blackoutOk ? "checked" : ""} />
-    <button type="button" class="btn btn-ghost" data-action="remove">Remove</button>
-  `;
+    <input class="input" data-k="days" type="number" min="1" max="60" value="${r.days}"/>
+    <label class="checkbox">
+      <input data-k="blackoutOk" type="checkbox" ${r.blackoutOk ? "checked" : ""}/>
+      <span>OK</span>
+    </label>
+    <button type="button" class="btn btn-ghost" data-action="remove">Remove</button>`;
 
   const nameInput = row.querySelector('[data-k="label"]');
-  const list = row.querySelector(".suggestion-list");
+  const list = row.querySelector(`#sugg-${r.id}`);
 
   function renderSuggestions(q) {
-    list.innerHTML = "";
-    if (!q || q.length < 1) { list.hidden = true; return; }
-    const norm = q.toLowerCase();
-    // search by resort_name and state code
-    const matches = state.resortsIndex
-      .filter(x =>
-        x.resort_name.toLowerCase().includes(norm) ||
-        (x.state && String(x.state).toLowerCase().includes(norm))
-      )
-      .slice(0, 20);
-
-    if (matches.length === 0) { list.hidden = true; return; }
-    matches.forEach((m, i) => {
-      const item = document.createElement("div");
-      item.className = "suggestion-item" + (i === 0 ? " active" : "");
-      item.textContent = `${m.resort_name}${m.state ? ", " + m.state : ""}`;
-      item.dataset.resortId = m.resort_id;
-      item.addEventListener("mousedown", e => {
-        e.preventDefault(); // fire before blur
-        nameInput.value = item.textContent;
-        updateResort(r.id, { resort_id: item.dataset.resortId, label: nameInput.value });
+    const query = (q || "").trim().toLowerCase();
+    if (!query) { list.hidden = true; list.innerHTML = ""; return; }
+    const matches = state.resortsIndex.filter(x =>
+      x.resort_name.toLowerCase().includes(query) ||
+      x.state.toLowerCase().includes(query) ||
+      x.resort_id.toLowerCase().includes(query)
+    ).slice(0, 14);
+    list.innerHTML = matches.map(x => `<li data-id="${x.resort_id}">${x.resort_name} — ${x.state}</li>`).join("");
+    list.hidden = matches.length === 0;
+    list.querySelectorAll("li").forEach(li => {
+      li.addEventListener("mousedown", () => {
+        updateResort(r.id, { resort_id: li.dataset.id, label: li.textContent });
+        nameInput.value = li.textContent;
         list.hidden = true;
       });
-      list.appendChild(item);
     });
-    list.hidden = false;
   }
 
   nameInput.addEventListener("input", debounce(() => {
-    updateResort(r.id, { label: nameInput.value, resort_id: "" }); // clear id until a suggestion is chosen
+    updateResort(r.id, { label: nameInput.value, resort_id: "" });
     renderSuggestions(nameInput.value);
   }));
 
@@ -169,13 +172,44 @@ function resortRow(r) {
   row.querySelector('[data-action="remove"]').addEventListener("click", () => removeResort(r.id));
   return row;
 }
+
 function renderResorts() {
   resortsEl.innerHTML = "";
   if (state.resorts.length === 0) addResort();
   state.resorts.forEach(r => resortsEl.appendChild(resortRow(r)));
 }
 
-/* -------- Submit -------- */
+/* ---------------- Results rendering ---------------- */
+function renderResults(data) {
+  resultsEl.innerHTML = "";
+  const makeTable = (rows) => {
+    const table = document.createElement("table");
+    table.innerHTML = "<thead><tr><th>Plan / Pass</th><th>Price</th><th>Notes</th></tr></thead>";
+    const tbody = document.createElement("tbody");
+    rows.forEach(p => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${p.name || p.plan || p.pass || "Plan"}</td>
+                      <td>${p.price != null ? "$" + p.price : "—"}</td>
+                      <td>${p.description || p.notes || ""}</td>`;
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    resultsEl.appendChild(table);
+  };
+
+  if (Array.isArray(data?.valid_passes)) return makeTable(data.valid_passes);
+  if (Array.isArray(data)) return makeTable(data);
+  if (data?.best_combo || data?.total_cost != null) {
+    const combo = (data.best_combo || []).join(" + ") || (data.combo_text || "—");
+    const total = (typeof data.total_cost === "number") ? `$${data.total_cost}` : "—";
+    resultsEl.innerHTML = `<table><thead><tr><th>Best Combo</th><th>Total Cost</th></tr></thead>
+      <tbody><tr><td>${combo}</td><td>${total}</td></tr></tbody></table>`;
+    return;
+  }
+  resultsEl.innerHTML = `<pre class="codeblock">${JSON.stringify(data, null, 2)}</pre>`;
+}
+
+/* ---------------- Submit ---------------- */
 async function handleSubmit(e) {
   e.preventDefault();
 
@@ -184,19 +218,17 @@ async function handleSubmit(e) {
     category: r.category
   }));
 
-  // Only submit entries with a confirmed resort_id
-  const resorts = state.resorts
+  const resort_days = state.resorts
     .filter(r => r.resort_id && r.days > 0)
-    .map(r => ({ resort_id: r.resort_id, days: Number(r.days), blackoutOk: !!r.blackoutOk }));
+    .map(r => ({ resort_id: r.resort_id, days: Number(r.days), blackout_ok: !!r.blackoutOk }));
 
-  const payload = { mode: FORCED_MODE, riders, resorts };
+  const payload = { riders, resort_days, mode: FORCED_MODE };
   rawReqEl.textContent = JSON.stringify(payload, null, 2);
-
-  if (resorts.length === 0) { statusEl.textContent = "Please pick a resort from the list"; return; }
-
+  resultsEl.innerHTML = "";
   statusEl.textContent = "Submitting…";
+
   try {
-    const res  = await fetch(API_URL, {
+    const res = await fetch(API_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload)
@@ -213,38 +245,19 @@ async function handleSubmit(e) {
     statusEl.textContent = "OK";
   } catch (err) {
     rawResEl.textContent = JSON.stringify({ error: String(err) }, null, 2);
-    statusEl.textContent = "Network error";
+    statusEl.textContent = "Error";
   }
 }
 
-/* -------- Results -------- */
-function renderResults(json) {
-  resultsEl.innerHTML = "";
-  if (!json || !Array.isArray(json.results) || json.results.length === 0) {
-    resultsEl.innerHTML = '<div class="muted">No results.</div>';
-    return;
-  }
-  const table = document.createElement("table");
-  table.innerHTML = '<thead><tr><th>Plan</th><th>Price</th><th>Description</th></tr></thead>';
-  const tbody = document.createElement("tbody");
-  json.results.forEach(p => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `<td>${p.name || p.plan || "Plan"}</td>
-                    <td>${p.price != null ? "$" + p.price : "—"}</td>
-                    <td>${p.description || ""}</td>`;
-    tbody.appendChild(tr);
-  });
-  table.appendChild(tbody);
-  resultsEl.appendChild(table);
-}
-
-/* -------- Wire-up -------- */
+/* ---------------- Wire-up ---------------- */
 document.getElementById("addRiderBtn").addEventListener("click", () => addRider());
 document.getElementById("addResortBtn").addEventListener("click", () => addResort());
 document.getElementById("clearAllBtn").addEventListener("click", () => { state.resorts = []; renderResorts(); });
 document.getElementById("expertForm").addEventListener("submit", handleSubmit);
 
-/* -------- Init -------- */
-await loadResortsIndex();
-renderRiders();
-renderResorts();
+/* ---------------- Init ---------------- */
+(async () => {
+  try { await loadResortsIndex(); } catch (e) { console.error(e); }
+  renderRiders();
+  renderResorts();
+})();
