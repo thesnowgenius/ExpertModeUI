@@ -1,24 +1,38 @@
+// Expert Mode UI script.js hotfix v6
+// Restores Stable-4 look/feel, typeahead, per-resort flags, default rows, and logo hook.
 
-// Expert Mode UI - Stable-4 + Hotfix v4
 document.addEventListener("DOMContentLoaded", () => {
-  const ridersDiv = document.getElementById("riders");
-  const resortsDiv = document.getElementById("resorts");
-  const submitBtn = document.getElementById("submit");
-  const rawRequest = document.getElementById("raw-request");
-  const rawResponse = document.getElementById("raw-response");
-  let resortData = [];
+  const ridersContainer = document.getElementById("riders") ||
+                          document.getElementById("rider-rows") ||
+                          document.getElementById("riderList");
+  const resortsContainer = document.getElementById("resorts") ||
+                           document.getElementById("resort-rows") ||
+                           document.getElementById("resortList");
 
-  // Load resorts.json
-  fetch("static/resorts.json")
-    .then(r => r.json())
-    .then(data => { resortData = data; })
-    .catch(err => console.error("Failed to load resorts.json", err));
+  const addRiderBtn = document.getElementById("addRider") ||
+                      document.getElementById("add-rider");
+  const addResortBtn = document.getElementById("addResort") ||
+                       document.getElementById("add-resort");
+  const clearBtn = document.getElementById("clear") ||
+                   document.getElementById("clearAll");
+  const submitBtn = document.getElementById("submit") ||
+                    document.getElementById("solve");
 
-  function createRiderRow() {
-    const row = document.createElement("div");
-    row.className = "rider-row";
-    row.innerHTML = `
-      <input type="number" placeholder="Age">
+  const rawRequest = document.getElementById("raw-request") ||
+                     document.getElementById("rawRequest");
+  const rawResponse = document.getElementById("raw-response") ||
+                      document.getElementById("rawResponse");
+
+  // --- Logo ---
+  const logo = document.getElementById("brand-logo") || document.getElementById("logo");
+  if (logo && !logo.src) logo.src = "static/logo.png";
+
+  // --- Default row creation ---
+  function addRider(age=30, category=null) {
+    const div = document.createElement("div");
+    div.className = "rider-row";
+    div.innerHTML = `
+      <input type="number" value="${age}" placeholder="Age">
       <select>
         <option value="">None</option>
         <option value="military">Military</option>
@@ -26,77 +40,87 @@ document.addEventListener("DOMContentLoaded", () => {
         <option value="nurse">Nurse/Doc</option>
       </select>
       <button type="button" class="remove">Remove</button>`;
-    row.querySelector(".remove").onclick = () => row.remove();
-    return row;
+    div.querySelector(".remove").onclick = () => div.remove();
+    ridersContainer.appendChild(div);
   }
 
-  function createResortRow() {
-    const row = document.createElement("div");
-    row.className = "resort-row";
-    row.innerHTML = `
-      <input type="text" class="resort-name" placeholder="Start typing...">
-      <input type="number" class="days" placeholder="Days">
+  function addResort(name="", days=1) {
+    const div = document.createElement("div");
+    div.className = "resort-row";
+    div.innerHTML = `
+      <input type="text" class="resort-name" value="${name}" placeholder="Start typing a resort…">
+      <input type="number" value="${days}" min="1" class="days">
       <label><input type="checkbox" class="no-weekends"> No weekends</label>
       <label><input type="checkbox" class="no-blackouts"> No blackout dates</label>
       <button type="button" class="remove">Remove</button>
-      <ul class="suggestions"></ul>`;
+      <div class="typeahead"></div>`;
+    div.querySelector(".remove").onclick = () => div.remove();
+    const input = div.querySelector(".resort-name");
+    const ta = div.querySelector(".typeahead");
 
-    const input = row.querySelector(".resort-name");
-    const sugg = row.querySelector(".suggestions");
-    let selectedId = null;
-
-    input.addEventListener("input", () => {
-      const val = input.value.toLowerCase();
-      sugg.innerHTML = "";
-      if (!val) return;
-      resortData.filter(r => r.name.toLowerCase().includes(val)).slice(0, 6)
-        .forEach(r => {
-          const li = document.createElement("li");
-          li.textContent = r.name;
-          li.onclick = () => { input.value = r.name; selectedId = r.id; sugg.innerHTML = ""; };
-          sugg.appendChild(li);
+    input.addEventListener("input", async () => {
+      const q = input.value.toLowerCase();
+      if (q.length < 2) { ta.innerHTML = ""; return; }
+      try {
+        const res = await fetch("static/resorts.json");
+        const all = await res.json();
+        const matches = all.filter(r =>
+          r.name.toLowerCase().includes(q) ||
+          (r.id && r.id.toLowerCase().includes(q))
+        ).slice(0, 6);
+        ta.innerHTML = matches.map(m =>
+          `<div class="opt" data-id="${m.id}" data-name="${m.name}">${m.name}</div>`).join("");
+        ta.querySelectorAll(".opt").forEach(opt => {
+          opt.onclick = () => {
+            input.value = opt.dataset.name;
+            input.dataset.id = opt.dataset.id;
+            ta.innerHTML = "";
+          };
         });
+      } catch(e) { console.error("Typeahead error", e); }
     });
 
-    input.addEventListener("blur", () => setTimeout(() => sugg.innerHTML = "", 150));
-    row.querySelector(".remove").onclick = () => row.remove();
-
-    row.getResort = () => ({
-      id: selectedId,
-      name: input.value.trim(),
-      days: parseInt(row.querySelector(".days").value || "0"),
-      no_weekends: row.querySelector(".no-weekends").checked,
-      no_blackouts: row.querySelector(".no-blackouts").checked,
-    });
-    return row;
+    resortsContainer.appendChild(div);
   }
 
-  document.getElementById("add-rider").onclick = () => ridersDiv.appendChild(createRiderRow());
-  document.getElementById("add-resort").onclick = () => resortsDiv.appendChild(createResortRow());
+  // --- Bind buttons ---
+  if (addRiderBtn) addRiderBtn.onclick = () => addRider();
+  if (addResortBtn) addResortBtn.onclick = () => addResort();
+  if (clearBtn) clearBtn.onclick = () => { ridersContainer.innerHTML=""; resortsContainer.innerHTML=""; addRider(); addResort(); };
 
-  submitBtn.onclick = () => {
-    const riders = [...ridersDiv.querySelectorAll(".rider-row")].map((r, i) => ({
-      name: `Rider ${i+1}`,
-      age: parseInt(r.querySelector("input").value || "0"),
-      category: r.querySelector("select").value || null,
-    }));
+  // default rows
+  addRider();
+  addResort();
 
-    const resorts = [...resortsDiv.querySelectorAll(".resort-row")].map(r => r.getResort());
-
-    const payload = { riders, resorts, mode: "auto" };
-    rawRequest.textContent = JSON.stringify(payload, null, 2);
-
-    fetch("https://pass-picker-expert-mode-multi.onrender.com/score_multi_pass", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    })
-    .then(r => r.json())
-    .then(data => { rawResponse.textContent = JSON.stringify(data, null, 2); })
-    .catch(err => { rawResponse.textContent = JSON.stringify({error: err.message}); });
+  // --- Submit ---
+  if (submitBtn) submitBtn.onclick = async () => {
+    const riders = [...ridersContainer.querySelectorAll(".rider-row")].map((r,i) => {
+      return {
+        name: "Rider " + (i+1),
+        age: parseInt(r.querySelector("input").value) || 0,
+        category: r.querySelector("select").value || null
+      };
+    });
+    const resorts = [...resortsContainer.querySelectorAll(".resort-row")].map(r => {
+      const input = r.querySelector(".resort-name");
+      return {
+        id: input.dataset.id || null,
+        name: input.value,
+        days: parseInt(r.querySelector(".days").value) || 0,
+        no_weekends: r.querySelector(".no-weekends").checked,
+        no_blackouts: r.querySelector(".no-blackouts").checked
+      };
+    });
+    const payload = { riders, resorts, mode:"auto" };
+    if (rawRequest) rawRequest.textContent = JSON.stringify(payload,null,2);
+    try {
+      const res = await fetch("https://pass-picker-expert-mode-multi.onrender.com/score_multi_pass", {
+        method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (rawResponse) rawResponse.textContent = JSON.stringify(data,null,2);
+    } catch(e) {
+      if (rawResponse) rawResponse.textContent = JSON.stringify({error:e.message});
+    }
   };
-
-  // init defaults
-  ridersDiv.appendChild(createRiderRow());
-  resortsDiv.appendChild(createResortRow());
 });
