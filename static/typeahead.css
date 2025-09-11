@@ -1,0 +1,15 @@
+.typeahead-list {
+  border: 1px solid #ccc;
+  max-height: 150px;
+  overflow-y: auto;
+  background: #fff;
+  position: absolute;
+  z-index: 1000;
+}
+.typeahead-item {
+  padding: 5px;
+  cursor: pointer;
+}
+.typeahead-item:hover {
+  background: #eee;
+}
