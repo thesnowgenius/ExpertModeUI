@@ -1,97 +1,59 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Snow Genius — Expert Mode</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="stylesheet" href="static/style.css" />
+  <link rel="stylesheet" href="static/style.css">
 </head>
 <body>
-  <div class="wrap">
-    <header class="hero">
-      <img src="static/logo.png" alt="Snow Genius" class="logo" />
-      <h1>Snow Genius</h1>
-      <p class="sub">Expert Mode — find the lowest-cost pass or combo that matches your exact plan.</p>
-    </header>
+  <header class="hero">
+    <img src="static/logo.png" alt="Snow Genius" class="brand-logo">
+    <h1>Snow Genius</h1>
+    <p>Expert Mode — find the lowest-cost pass or combo that matches your exact plan.</p>
+  </header>
 
-    <form id="expertForm" class="card">
-      <!-- Riders -->
-      <div class="header-row row">
-        <h2 class="m0">Riders</h2>
-        <div class="inline gap">
-          <button type="button" class="btn" id="addRiderBtn">+ Add Rider</button>
-        </div>
-      </div>
-
-      <!-- Riders column header (static) -->
-      <div class="grid riders-head">
-        <div class="th">Age</div>
-        <div class="th">Category</div>
-        <div class="th"></div>
-      </div>
-
-      <div id="riders" class="stack"></div>
-
-      <!-- Resorts -->
-      <div class="header-row row pad-top">
-        <h2 class="m0">Resorts</h2>
-        <div class="inline gap small muted"></div>
-        <div class="inline gap">
-          <button type="button" class="btn" id="addResortBtn">+ Add Resort</button>
-          <button type="button" class="btn btn-ghost" id="clearAllBtn">Clear</button>
-        </div>
-      </div>
-
-      <!-- Resorts column header (static) -->
-      <div class="grid resorts-head">
-        <div class="th">Resort</div>
-        <div class="th">Days</div>
-        <div class="th">Blackout OK</div>
-      </div>
-
-      <div id="resorts" class="stack"></div>
-
-      <!-- Status + Submit -->
-      <div class="row header-row">
-        <div class="status" id="status">Idle</div>
-        <button type="submit" class="btn btn-primary" id="submitBtn">Submit</button>
-      </div>
-    
-      <div class="row pad-top">
-        <div class="inline gap">
-          <label class="inline"><input type="checkbox" id="no_weekends"> No Weekends</label>
-          <label class="inline"><input type="checkbox" id="no_blackouts"> No blackout dates</label>
-        </div>
-      </div>
-
-    </form>
-
-    <!-- Raw panes -->
-    <div class="card">
-      <details>
-        <summary>Raw Request</summary>
-        <pre id="rawRequest" class="codeblock">{}</pre>
-      </details>
-      <details class="pad-top">
-        <summary>Raw Response</summary>
-        <pre id="rawResponse" class="codeblock">{}</pre>
-      </details>
+  <main class="container card">
+    <div class="row between">
+      <h2>Riders</h2>
+      <button id="addRider" class="btn">+ Add Rider</button>
     </div>
+    <div id="riders" class="stack"></div>
 
-    <!-- Results -->
-    <div class="card">
-      <div class="header-row row">
-        <h2 class="m0">Results</h2>
-        <div id="sortBar" class="small muted" style="display:none">Sorted by cost</div>
+    <div class="row between">
+      <h2>Resorts</h2>
+      <div class="hstack">
+        <button id="addResort" class="btn">+ Add Resort</button>
+        <button id="clearAll" class="btn ghost">Clear</button>
+        <button id="solve" class="btn primary">Submit</button>
       </div>
-      <div id="results-container" class="table-wrap"></div>
     </div>
+    <div class="grid header">
+      <div>Resort</div>
+      <div>Days</div>
+      <div>No weekends</div>
+      <div>No blackout dates</div>
+      <div></div>
+    </div>
+    <div id="resorts" class="stack"></div>
 
-    <footer class="footer small">© Snow Genius</footer>
-  </div>
+    <details class="card mt" open>
+      <summary>Raw Request</summary>
+      <pre id="rawRequest">{}</pre>
+    </details>
 
+    <details class="card mt" open>
+      <summary>Raw Response</summary>
+      <pre id="rawResponse">{}</pre>
+    </details>
+
+    <section class="card mt">
+      <h2>Results</h2>
+      <div id="results"></div>
+    </section>
+  </main>
+
+  <footer class="footer">© Snow Genius</footer>
   <script src="static/script.js"></script>
-  <script src="results.js"></script>
-  <script src="autoResize.js"></script>
 </body>
 </html>
