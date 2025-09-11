@@ -1,59 +1,84 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Snow Genius — Expert Mode</title>
-  <link rel="stylesheet" href="static/style.css">
+  <link rel="preload" href="resorts.json" as="fetch" crossorigin="anonymous">
+  <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body>
   <header class="hero">
-    <img src="static/logo.png" alt="Snow Genius" class="brand-logo">
+    <img id="brand-logo" src="assets/logo.png" alt="Expert Mode" class="logo" />
     <h1>Snow Genius</h1>
-    <p>Expert Mode — find the lowest-cost pass or combo that matches your exact plan.</p>
+    <p class="tagline">Expert Mode — find the lowest-cost pass or combo that matches your exact plan.</p>
   </header>
 
-  <main class="container card">
-    <div class="row between">
-      <h2>Riders</h2>
-      <button id="addRider" class="btn">+ Add Rider</button>
-    </div>
-    <div id="riders" class="stack"></div>
-
-    <div class="row between">
-      <h2>Resorts</h2>
-      <div class="hstack">
-        <button id="addResort" class="btn">+ Add Resort</button>
-        <button id="clearAll" class="btn ghost">Clear</button>
-        <button id="solve" class="btn primary">Submit</button>
+  <main class="card">
+    <section class="section">
+      <div class="section-head">
+        <h2>Riders</h2>
+        <div class="section-actions">
+          <button id="add-rider" class="btn">+ Add Rider</button>
+        </div>
       </div>
-    </div>
-    <div class="grid header">
-      <div>Resort</div>
-      <div>Days</div>
-      <div>No weekends</div>
-      <div>No blackout dates</div>
-      <div></div>
-    </div>
-    <div id="resorts" class="stack"></div>
+      <div id="riders" class="rows">
+        <!-- First rider row (Stable-4 style) -->
+        <div class="row rider-row">
+          <input type="number" min="0" placeholder="Age" class="input rider-age" />
+          <select class="select rider-category">
+            <option value="">None</option>
+            <option value="military">Military</option>
+            <option value="student">Student</option>
+            <option value="medical">Nurse/Doc</option>
+          </select>
+          <button type="button" class="btn subtle remove-rider">Remove</button>
+        </div>
+      </div>
+    </section>
 
-    <details class="card mt" open>
+    <section class="section">
+      <div class="section-head">
+        <h2>Resorts</h2>
+        <div class="section-actions">
+          <button id="add-resort" class="btn">+ Add Resort</button>
+          <button id="clear" class="btn subtle">Clear</button>
+          <button id="submit" class="btn primary">Submit</button>
+        </div>
+      </div>
+
+      <div class="rows" id="resorts">
+        <!-- First resort row -->
+        <div class="row resort-row">
+          <div class="typeahead">
+            <input type="text" class="input resort-input" placeholder="Start typing a resort…" autocomplete="off" />
+            <ul class="suggestions"></ul>
+          </div>
+          <input type="number" min="1" class="input days-input" placeholder="Days" />
+          <label class="chk"><input type="checkbox" class="no-weekends" /> No weekends</label>
+          <label class="chk"><input type="checkbox" class="no-blackouts" /> No blackout dates</label>
+          <button type="button" class="btn subtle remove-resort">Remove</button>
+        </div>
+      </div>
+    </section>
+
+    <details class="debug">
       <summary>Raw Request</summary>
-      <pre id="rawRequest">{}</pre>
+      <pre id="raw-request">{}</pre>
     </details>
-
-    <details class="card mt" open>
+    <details class="debug">
       <summary>Raw Response</summary>
-      <pre id="rawResponse">{}</pre>
+      <pre id="raw-response">{}</pre>
     </details>
 
-    <section class="card mt">
+    <section class="section">
       <h2>Results</h2>
       <div id="results"></div>
     </section>
   </main>
 
   <footer class="footer">© Snow Genius</footer>
-  <script src="static/script.js"></script>
+
+  <script src="assets/script.js"></script>
 </body>
 </html>
