@@ -1,7 +1,7 @@
 // Stable-4 drop-in logic with fixed wiring, 3+ letter typeahead, per-resort flags
 (() => {
   // Use window.API_URL if provided; otherwise default to Render endpoint
-  const API_URL = window.API_URL || 'https://pass-picker-expert-mode-multi.onrender.com/score_multi_pass';
+  const API_URL = window.API_URL || 'https://pass-picker-expert-mode-multi.onrender.com/score_pass';
 
   // --------- Typeahead data ---------
   let RESORTS = [];
