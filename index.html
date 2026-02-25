@@ -9,7 +9,7 @@
 </head>
 <body>
   <header class="hero">
-    <img id="brand-logo" src="assets/logo.png" alt="Expert Mode" class="logo" />
+    <img id="brand-logo" src="static/logo.png" alt="Snow Genius Expert Mode" class="logo" />
     <h1>Snow Genius</h1>
     <p class="tagline">Expert Mode — find the lowest-cost pass or combo that matches your exact plan.</p>
   </header>
@@ -25,8 +25,8 @@
       <div id="riders" class="rows">
         <!-- First rider row (Stable-4 style) -->
         <div class="row rider-row">
-          <input type="number" min="0" placeholder="Age" class="input rider-age" />
-          <select class="select rider-category">
+          <input type="number" min="0" placeholder="Age" class="input rider-age" aria-label="Rider age" />
+          <select class="select rider-category" aria-label="Rider category">
             <option value="">None</option>
             <option value="military">Military</option>
             <option value="student">Student</option>
@@ -51,16 +51,19 @@
         <!-- First resort row -->
         <div class="row resort-row">
           <div class="typeahead">
-            <input type="text" class="input resort-input" placeholder="Start typing a resort…" autocomplete="off" />
-            <ul class="suggestions"></ul>
+            <input type="text" class="input resort-input" placeholder="Start typing a resort…" autocomplete="off" aria-label="Resort" />
+            <ul class="suggestions" role="listbox"></ul>
           </div>
-          <input type="number" min="1" class="input days-input" placeholder="Days" />
+          <input type="number" min="1" class="input days-input" placeholder="Days" aria-label="Days requested" />
           <label class="chk"><input type="checkbox" class="no-weekends" /> No weekends</label>
           <label class="chk"><input type="checkbox" class="no-blackouts" /> No blackout dates</label>
           <button type="button" class="btn subtle remove-resort">Remove</button>
         </div>
       </div>
     </section>
+
+    <div id="form-error" class="error-banner" role="alert" hidden></div>
+    <div id="form-status" class="visually-hidden" aria-live="polite"></div>
 
     <details class="debug">
       <summary>Raw Request</summary>
@@ -73,12 +76,12 @@
 
     <section class="section">
       <h2>Results</h2>
-      <div id="results"></div>
+      <div id="results" aria-live="polite" aria-busy="false"></div>
     </section>
   </main>
 
   <footer class="footer">© Snow Genius</footer>
 
-  <script src="assets/script.js"></script>
+  <script src="assets/script.js" defer></script>
 </body>
 </html>
