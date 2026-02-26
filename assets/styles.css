@@ -424,6 +424,15 @@ h1{
   overflow-wrap:anywhere;
 }
 
+.pass-name-link{
+  color:inherit;
+}
+
+.pass-name-link:hover,
+.pass-name-link:focus-visible{
+  text-decoration:underline;
+}
+
 .pass-brand-logo{
   width:auto;
   height:1em;
