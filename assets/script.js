@@ -487,10 +487,12 @@
       const familySection = document.createElement("div");
       familySection.className = "pass-group pass-family-section";
 
-      const familyHeading = document.createElement("div");
-      familyHeading.className = "pass-group-title pass-family-title";
-      familyHeading.textContent = familyName;
-      familySection.appendChild(familyHeading);
+      if (isDevMode) {
+        const familyHeading = document.createElement("div");
+        familyHeading.className = "pass-group-title pass-family-title";
+        familyHeading.textContent = familyName;
+        familySection.appendChild(familyHeading);
+      }
 
       const byRider = new Map();
       items.forEach((passItem) => {
@@ -629,13 +631,15 @@
       title.className = "result-title";
       title.textContent = isDevMode
         ? `${String(result.strategy || "result").toUpperCase()} Recommendation`
-        : `Recommendation ${index + 1}`;
+        : "";
 
       const price = document.createElement("div");
       price.className = "result-price";
       price.textContent = toCurrency(result.price || 0);
 
-      head.appendChild(title);
+      if (isDevMode) {
+        head.appendChild(title);
+      }
       head.appendChild(price);
 
       const summary = document.createElement("div");

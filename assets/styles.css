@@ -324,6 +324,7 @@ h1{
 .result-price{
   font-weight:700;
   color:#0f3e7a;
+  margin-left:auto;
 }
 
 .result-summary{
