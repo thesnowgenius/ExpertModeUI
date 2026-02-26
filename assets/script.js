@@ -154,9 +154,9 @@
 
   function initializeModeUi() {
     document.body.classList.toggle("dev-mode", isDevMode);
-    if (els.hero) els.hero.hidden = isDevMode;
-    if (els.appMain) els.appMain.hidden = isDevMode;
-    if (els.footer) els.footer.hidden = isDevMode;
+    if (els.hero) els.hero.hidden = false;
+    if (els.appMain) els.appMain.hidden = false;
+    if (els.footer) els.footer.hidden = false;
     if (els.devShell) els.devShell.hidden = !isDevMode;
   }
 
@@ -582,6 +582,28 @@
     return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0;
   }
 
+  function getPassItemUrl(passItem) {
+    const raw =
+      passItem?.url ??
+      passItem?.pass_url ??
+      passItem?.purchase_url ??
+      passItem?.buy_url ??
+      passItem?.product_url ??
+      passItem?.link ??
+      "";
+    const text = String(raw || "").trim();
+    if (!text) return "";
+    try {
+      const parsed = new URL(text);
+      if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+        return parsed.toString();
+      }
+    } catch (_error) {
+      return "";
+    }
+    return "";
+  }
+
   function appendPassBrandLogos(container, passSearchText) {
     PASS_BRAND_LOGOS.forEach((brand) => {
       if (!brand.match.test(passSearchText)) return;
@@ -604,7 +626,18 @@
     const passSearchText = `${passItem.name || ""} ${passItem.pass_id || ""}`;
     appendPassBrandLogos(left, passSearchText);
     const label = document.createElement("span");
-    label.textContent = passName;
+    const passUrl = getPassItemUrl(passItem);
+    if (passUrl) {
+      const link = document.createElement("a");
+      link.href = passUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.className = "pass-name-link";
+      link.textContent = passName;
+      label.appendChild(link);
+    } else {
+      label.textContent = passName;
+    }
     left.appendChild(label);
 
     const right = document.createElement("span");
