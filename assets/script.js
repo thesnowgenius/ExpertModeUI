@@ -1,7 +1,12 @@
 (() => {
   const DEFAULT_API_URL = "https://pass-picker-expert-mode-multi.onrender.com/score_pass";
   const ALLOWED_REMOTE_API_HOSTS = new Set(["pass-picker-expert-mode-multi.onrender.com"]);
-  const IKON_LOGO_SRC = "assets/ikon-pass-inc-logo-vector.svg";
+  const PASS_BRAND_LOGOS = [
+    { key: "IKON", src: "assets/ikon-pass-inc-logo-vector.svg", match: /\bikon\b/i },
+    { key: "Epic", src: "assets/epic-pass-logo.svg", match: /\bepic\b/i },
+    { key: "Mountain Collective", src: "assets/mountain-collective-logo.svg", match: /\bmountain\s+collective\b/i },
+    { key: "Indy", src: "assets/indy-pass-logo.svg", match: /\bindy\b/i },
+  ];
   const MIN_TYPEAHEAD_CHARS = 3;
   const MAX_SUGGESTIONS = 10;
   const REQUEST_TIMEOUT_MS = 20000;
@@ -577,6 +582,18 @@
     return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0;
   }
 
+  function appendPassBrandLogos(container, passSearchText) {
+    PASS_BRAND_LOGOS.forEach((brand) => {
+      if (!brand.match.test(passSearchText)) return;
+      const logo = document.createElement("img");
+      logo.className = "pass-brand-logo";
+      logo.src = brand.src;
+      logo.alt = brand.key;
+      logo.loading = "lazy";
+      container.appendChild(logo);
+    });
+  }
+
   function appendPassRow(container, passItem) {
     const row = document.createElement("div");
     row.className = "pass-item";
@@ -585,14 +602,7 @@
     left.className = "pass-name";
     const passName = passItem.name || passItem.pass_id || "Unknown pass";
     const passSearchText = `${passItem.name || ""} ${passItem.pass_id || ""}`;
-    if (/\bikon\b/i.test(passSearchText)) {
-      const logo = document.createElement("img");
-      logo.className = "pass-brand-logo";
-      logo.src = IKON_LOGO_SRC;
-      logo.alt = "IKON";
-      logo.loading = "lazy";
-      left.appendChild(logo);
-    }
+    appendPassBrandLogos(left, passSearchText);
     const label = document.createElement("span");
     label.textContent = passName;
     left.appendChild(label);

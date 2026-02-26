@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title>Mountain Collective logo</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#032d2a"/>
+      <stop offset="0.55" stop-color="#042547"/>
+      <stop offset="1" stop-color="#06132d"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="18" fill="url(#bg)"/>
+  <path d="M31 196 87 86l20 39 21-42 28 56 18-35 51 92" fill="none" stroke="#27b7c7" stroke-opacity=".25" stroke-width="6" stroke-linecap="round"/>
+  <g fill="none" stroke="#fff" stroke-width="7" stroke-linejoin="miter" stroke-linecap="square">
+    <path d="M40 153 86 63l22 43 20-40 33 66 20-39 35 69"/>
+    <path d="M42 169h43l17 33 26-52 24 49 19-38h44"/>
+  </g>
+</svg>

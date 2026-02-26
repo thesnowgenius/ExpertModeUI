@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title">
+  <title>Indy Pass logo</title>
+  <rect width="256" height="256" fill="#fff"/>
+  <circle cx="128" cy="128" r="100" fill="#e10600"/>
+  <g fill="#fff">
+    <rect x="84" y="68" width="88" height="120"/>
+    <rect x="68" y="84" width="120" height="88"/>
+    <path d="M126 60h4v136h-4z" transform="rotate(45 128 128)"/>
+    <path d="M126 60h4v136h-4z" transform="rotate(-45 128 128)"/>
+    <path d="M126 92h4v72h-4z" transform="rotate(22.5 128 128)"/>
+    <path d="M126 92h4v72h-4z" transform="rotate(-22.5 128 128)"/>
+  </g>
+  <g fill="#e10600">
+    <rect x="112" y="68" width="32" height="120"/>
+    <rect x="68" y="112" width="120" height="32"/>
+    <path d="M118 60h20v136h-20z" transform="rotate(45 128 128)"/>
+    <path d="M118 60h20v136h-20z" transform="rotate(-45 128 128)"/>
+    <path d="M120 92h16v72h-16z" transform="rotate(22.5 128 128)"/>
+    <path d="M120 92h16v72h-16z" transform="rotate(-22.5 128 128)"/>
+    <rect x="78" y="78" width="24" height="24"/>
+    <rect x="154" y="78" width="24" height="24"/>
+    <rect x="78" y="154" width="24" height="24"/>
+    <rect x="154" y="154" width="24" height="24"/>
+  </g>
+</svg>
