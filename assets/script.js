@@ -1,9 +1,26 @@
 (() => {
   const API_URL = window.API_URL || "https://pass-picker-expert-mode-multi.onrender.com/score_pass";
+  const IKON_LOGO_SRC = "assets/ikon-pass-inc-logo-vector.svg";
   const MIN_TYPEAHEAD_CHARS = 3;
   const MAX_SUGGESTIONS = 10;
+  const isDevMode = (() => {
+    if (typeof window.__SNOW_GENIUS_DEV_MODE__ === "boolean") {
+      return window.__SNOW_GENIUS_DEV_MODE__;
+    }
+    const params = new URLSearchParams(window.location.search || "");
+    return (
+      params.has("devmode") ||
+      (params.get("mode") || "").toLowerCase() === "devmode" ||
+      (params.get("") || "").toLowerCase() === "devmode" ||
+      /(?:^|[?&=])devmode(?:[=&]|$)/i.test(window.location.search || "")
+    );
+  })();
 
   const els = {
+    hero: document.querySelector(".hero"),
+    appMain: document.querySelector("#app-main"),
+    devShell: document.querySelector("#dev-shell"),
+    footer: document.querySelector(".footer"),
     ridersWrap: document.querySelector("#riders"),
     resortsWrap: document.querySelector("#resorts"),
     addRider: document.querySelector("#add-rider"),
@@ -66,6 +83,14 @@
     }
     els.formError.hidden = false;
     els.formError.textContent = message;
+  }
+
+  function initializeModeUi() {
+    document.body.classList.toggle("dev-mode", isDevMode);
+    if (els.hero) els.hero.hidden = isDevMode;
+    if (els.appMain) els.appMain.hidden = isDevMode;
+    if (els.footer) els.footer.hidden = isDevMode;
+    if (els.devShell) els.devShell.hidden = !isDevMode;
   }
 
   function clearResults() {
@@ -163,7 +188,7 @@
         <ul class="suggestions" role="listbox"></ul>
       </div>
       <input type="number" min="1" class="input days-input" placeholder="Days" aria-label="Days requested" />
-      <label class="chk"><input type="checkbox" class="no-weekends" /> No weekends</label>
+      <label class="chk"><input type="checkbox" class="no-weekends" /> Only Weekdays</label>
       <label class="chk"><input type="checkbox" class="no-blackouts" /> No blackout dates</label>
       <button type="button" class="btn subtle remove-resort">Remove</button>
     `;
@@ -476,7 +501,20 @@
           row.className = "pass-item";
 
           const left = document.createElement("span");
-          left.textContent = passItem.name || passItem.pass_id || "Unknown pass";
+          left.className = "pass-name";
+          const passName = passItem.name || passItem.pass_id || "Unknown pass";
+          const passSearchText = `${passItem.name || ""} ${passItem.pass_id || ""}`;
+          if (/\bikon\b/i.test(passSearchText)) {
+            const logo = document.createElement("img");
+            logo.className = "pass-brand-logo";
+            logo.src = IKON_LOGO_SRC;
+            logo.alt = "IKON";
+            logo.loading = "lazy";
+            left.appendChild(logo);
+          }
+          const label = document.createElement("span");
+          label.textContent = passName;
+          left.appendChild(label);
 
           const right = document.createElement("span");
           right.textContent = toCurrency(passItem.price || 0);
@@ -531,7 +569,7 @@
       return;
     }
 
-    data.results.forEach((result) => {
+    data.results.forEach((result, index) => {
       const card = document.createElement("section");
       card.className = "result-card";
 
@@ -540,7 +578,9 @@
 
       const title = document.createElement("h3");
       title.className = "result-title";
-      title.textContent = `${String(result.strategy || "result").toUpperCase()} Recommendation`;
+      title.textContent = isDevMode
+        ? `${String(result.strategy || "result").toUpperCase()} Recommendation`
+        : `Recommendation ${index + 1}`;
 
       const price = document.createElement("div");
       price.className = "result-price";
@@ -551,7 +591,11 @@
 
       const summary = document.createElement("div");
       summary.className = "result-summary";
-      summary.textContent = `${result.pass_count || 0} pass(es)`;
+      const summaryParts = [`${result.pass_count || 0} pass(es)`];
+      if (isDevMode && result.strategy) {
+        summaryParts.push(`Strategy: ${String(result.strategy)}`);
+      }
+      summary.textContent = summaryParts.join(" • ");
 
       card.appendChild(head);
       card.appendChild(summary);
@@ -634,7 +678,7 @@
   }
 
   initializeExistingRows();
+  initializeModeUi();
   bindEvents();
   loadResorts();
 })();
-

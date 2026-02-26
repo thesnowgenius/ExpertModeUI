@@ -5,6 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Snow Genius — Expert Mode</title>
   <link rel="preload" href="resorts.json" as="fetch" crossorigin="anonymous">
+  <script>
+    (() => {
+      const params = new URLSearchParams(window.location.search || "");
+      const emptyKeyValue = (params.get("") || "").toLowerCase();
+      const modeValue = (params.get("mode") || "").toLowerCase();
+      const devMode =
+        params.has("devmode") ||
+        modeValue === "devmode" ||
+        emptyKeyValue === "devmode" ||
+        /(?:^|[?&=])devmode(?:[=&]|$)/i.test(window.location.search || "");
+      window.__SNOW_GENIUS_DEV_MODE__ = devMode;
+      if (devMode) document.documentElement.classList.add("dev-mode");
+    })();
+  </script>
   <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body>
@@ -14,7 +28,7 @@
     <p class="tagline">Expert Mode — find the lowest-cost pass or combo that matches your exact plan.</p>
   </header>
 
-  <main class="card">
+  <main class="card" id="app-main">
     <section class="section">
       <div class="section-head">
         <h2>Riders</h2>
@@ -42,8 +56,6 @@
         <h2>Resorts</h2>
         <div class="section-actions">
           <button id="add-resort" class="btn">+ Add Resort</button>
-          <button id="clear" class="btn subtle">Clear</button>
-          <button id="submit" class="btn primary">Submit</button>
         </div>
       </div>
 
@@ -55,28 +67,43 @@
             <ul class="suggestions" role="listbox"></ul>
           </div>
           <input type="number" min="1" class="input days-input" placeholder="Days" aria-label="Days requested" />
-          <label class="chk"><input type="checkbox" class="no-weekends" /> No weekends</label>
+          <label class="chk"><input type="checkbox" class="no-weekends" /> Only Weekdays</label>
           <label class="chk"><input type="checkbox" class="no-blackouts" /> No blackout dates</label>
           <button type="button" class="btn subtle remove-resort">Remove</button>
         </div>
+      </div>
+
+      <div class="resort-submit-row">
+        <button id="clear" class="btn subtle">Clear</button>
+        <button id="submit" class="btn primary">Submit</button>
       </div>
     </section>
 
     <div id="form-error" class="error-banner" role="alert" hidden></div>
     <div id="form-status" class="visually-hidden" aria-live="polite"></div>
 
-    <details class="debug">
-      <summary>Raw Request</summary>
-      <pre id="raw-request">{}</pre>
-    </details>
-    <details class="debug">
-      <summary>Raw Response</summary>
-      <pre id="raw-response">{}</pre>
-    </details>
-
     <section class="section">
       <h2>Results</h2>
       <div id="results" aria-live="polite" aria-busy="false"></div>
+    </section>
+  </main>
+
+  <main id="dev-shell" class="dev-shell" hidden>
+    <section class="dev-shell-card">
+      <div class="dev-shell-head">
+        <h2>Developer Mode</h2>
+        <p>Raw request/response only. Use <code>?devmode</code>, <code>?mode=devmode</code>, or <code>?=devmode</code>.</p>
+      </div>
+
+      <details class="dev-debug" open>
+        <summary>Raw Request</summary>
+        <pre id="raw-request">{}</pre>
+      </details>
+
+      <details class="dev-debug" open>
+        <summary>Raw Response</summary>
+        <pre id="raw-response">{}</pre>
+      </details>
     </section>
   </main>
 
