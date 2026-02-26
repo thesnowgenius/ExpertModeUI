@@ -38,6 +38,11 @@ body{
   position:relative;
 }
 
+.hero-compact{
+  text-align:center;
+  justify-items:center;
+}
+
 .hero::before{
   content:"";
   position:absolute;
