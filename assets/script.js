@@ -469,46 +469,58 @@
     };
   }
 
+  function getRiderIndex(passItem) {
+    const parsed = Number(passItem?.rider_index);
+    return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0;
+  }
+
+  function appendPassRow(container, passItem) {
+    const row = document.createElement("div");
+    row.className = "pass-item";
+
+    const left = document.createElement("span");
+    left.className = "pass-name";
+    const passName = passItem.name || passItem.pass_id || "Unknown pass";
+    const passSearchText = `${passItem.name || ""} ${passItem.pass_id || ""}`;
+    if (/\bikon\b/i.test(passSearchText)) {
+      const logo = document.createElement("img");
+      logo.className = "pass-brand-logo";
+      logo.src = IKON_LOGO_SRC;
+      logo.alt = "IKON";
+      logo.loading = "lazy";
+      left.appendChild(logo);
+    }
+    const label = document.createElement("span");
+    label.textContent = passName;
+    left.appendChild(label);
+
+    const right = document.createElement("span");
+    right.textContent = toCurrency(passItem.price || 0);
+
+    row.appendChild(left);
+    row.appendChild(right);
+    container.appendChild(row);
+  }
+
   function renderPassList(passes) {
     const wrapper = document.createElement("div");
     wrapper.className = "pass-list";
 
-    const grouped = new Map();
+    const byRider = new Map();
     (Array.isArray(passes) ? passes : []).forEach((passItem) => {
-      const family = getPassFamily(passItem);
-      if (!grouped.has(family)) {
-        grouped.set(family, []);
+      const riderIndex = getRiderIndex(passItem);
+      if (!byRider.has(riderIndex)) {
+        byRider.set(riderIndex, []);
       }
-      grouped.get(family).push(passItem);
+      byRider.get(riderIndex).push(passItem);
     });
 
-    Array.from(grouped.keys()).forEach((familyName) => {
-      const items = grouped.get(familyName) || [];
-      const familySection = document.createElement("div");
-      familySection.className = "pass-group pass-family-section";
-
-      if (isDevMode) {
-        const familyHeading = document.createElement("div");
-        familyHeading.className = "pass-group-title pass-family-title";
-        familyHeading.textContent = familyName;
-        familySection.appendChild(familyHeading);
-      }
-
-      const byRider = new Map();
-      items.forEach((passItem) => {
-        const riderIndex = Number.isInteger(passItem.rider_index) ? passItem.rider_index : 0;
-        if (!byRider.has(riderIndex)) {
-          byRider.set(riderIndex, []);
-        }
-        byRider.get(riderIndex).push(passItem);
-      });
-
-      Array.from(byRider.keys())
-        .sort((a, b) => a - b)
-        .forEach((riderIndex) => {
-          const riderItems = byRider.get(riderIndex) || [];
+    Array.from(byRider.keys())
+      .sort((a, b) => a - b)
+      .forEach((riderIndex) => {
+        const riderItems = byRider.get(riderIndex) || [];
         const section = document.createElement("div");
-        section.className = "pass-rider-subgroup";
+        section.className = "pass-group pass-rider-subgroup";
 
         const heading = document.createElement("div");
         heading.className = "pass-rider-title";
@@ -517,39 +529,37 @@
         heading.textContent = `Rider ${riderIndex + 1}${cat}`;
         section.appendChild(heading);
 
-        riderItems.forEach((passItem) => {
-          const row = document.createElement("div");
-          row.className = "pass-item";
+        if (isDevMode) {
+          const byFamily = new Map();
+          riderItems.forEach((passItem) => {
+            const family = getPassFamily(passItem);
+            if (!byFamily.has(family)) {
+              byFamily.set(family, []);
+            }
+            byFamily.get(family).push(passItem);
+          });
 
-          const left = document.createElement("span");
-          left.className = "pass-name";
-          const passName = passItem.name || passItem.pass_id || "Unknown pass";
-          const passSearchText = `${passItem.name || ""} ${passItem.pass_id || ""}`;
-          if (/\bikon\b/i.test(passSearchText)) {
-            const logo = document.createElement("img");
-            logo.className = "pass-brand-logo";
-            logo.src = IKON_LOGO_SRC;
-            logo.alt = "IKON";
-            logo.loading = "lazy";
-            left.appendChild(logo);
-          }
-          const label = document.createElement("span");
-          label.textContent = passName;
-          left.appendChild(label);
+          Array.from(byFamily.keys()).forEach((familyName) => {
+            const familySection = document.createElement("div");
+            familySection.className = "pass-family-section";
 
-          const right = document.createElement("span");
-          right.textContent = toCurrency(passItem.price || 0);
+            const familyHeading = document.createElement("div");
+            familyHeading.className = "pass-group-title pass-family-title";
+            familyHeading.textContent = familyName;
+            familySection.appendChild(familyHeading);
 
-          row.appendChild(left);
-          row.appendChild(right);
-          section.appendChild(row);
-        });
+            (byFamily.get(familyName) || []).forEach((passItem) => {
+              appendPassRow(familySection, passItem);
+            });
 
-          familySection.appendChild(section);
-        });
+            section.appendChild(familySection);
+          });
+        } else {
+          riderItems.forEach((passItem) => appendPassRow(section, passItem));
+        }
 
-      wrapper.appendChild(familySection);
-    });
+        wrapper.appendChild(section);
+      });
 
     return wrapper;
   }
