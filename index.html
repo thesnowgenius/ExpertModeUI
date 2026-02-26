@@ -11,13 +11,74 @@
   <title>Snow Genius — Expert Mode</title>
   <link rel="preload" href="resorts.json" as="fetch" crossorigin="anonymous">
   <script src="assets/bootstrap.js?v=20260226a"></script>
-  <link rel="stylesheet" href="assets/styles.css?v=20260226d" />
+  <link rel="stylesheet" href="assets/styles.css?v=20260226e" />
 </head>
 <body>
   <header class="hero">
-    <img id="brand-logo" src="assets/expert-mode-logo.svg" alt="Expert Mode" class="logo" />
-    <h1>Snow Genius</h1>
-    <p class="tagline">Expert Mode — find the lowest-cost pass or combo that matches your exact plan.</p>
+    <div class="hero-shell">
+      <div class="hero-copy">
+        <div class="hero-kicker">
+          <span class="pill pill-release">New Release</span>
+          <span class="pill">Expert Mode is live</span>
+        </div>
+        <h1>Snow Genius helps skiers buy passes like analysts, not guessers.</h1>
+        <p class="tagline">
+          Snow Genius is a ski-pass planning company built to compare real trip plans across Epic, Ikon,
+          Indy, Mountain Collective, and combinations. Expert Mode is the newest workflow for precise,
+          rider-by-rider optimization.
+        </p>
+        <div class="hero-actions">
+          <a class="btn primary" href="#app-main">Try Expert Mode</a>
+          <a class="btn subtle hero-link" href="#results">See How Results Are Presented</a>
+        </div>
+        <ul class="hero-points" aria-label="Expert Mode highlights">
+          <li>Multi-rider inputs with age and discount categories</li>
+          <li>Per-resort day counts, weekday-only requests, and blackout constraints</li>
+          <li>Lowest-cost pass or combo recommendations with uncovered days shown clearly</li>
+        </ul>
+      </div>
+
+      <aside class="hero-panel" aria-label="Expert Mode summary">
+        <div class="hero-panel-header">
+          <img id="brand-logo" src="assets/expert-mode-logo.svg" alt="Expert Mode" class="logo" />
+          <p class="hero-panel-label">Launch Focus</p>
+          <h2>Exact-plan pass optimization</h2>
+          <p class="hero-panel-copy">
+            Built for families and groups who need a defensible answer, not a generic “best pass” list.
+          </p>
+        </div>
+
+        <div class="hero-stat-grid" aria-label="Snow Genius coverage">
+          <div class="hero-stat">
+            <span class="hero-stat-label">Input Type</span>
+            <strong>Trip-first</strong>
+            <span class="hero-stat-note">Plan the skiing, then price the passes</span>
+          </div>
+          <div class="hero-stat">
+            <span class="hero-stat-label">Pass Logic</span>
+            <strong>Single + Combo</strong>
+            <span class="hero-stat-note">Compares families and mixed strategies</span>
+          </div>
+          <div class="hero-stat">
+            <span class="hero-stat-label">Constraints</span>
+            <strong>Weekdays / Blackouts</strong>
+            <span class="hero-stat-note">Practical filters for real use</span>
+          </div>
+          <div class="hero-stat">
+            <span class="hero-stat-label">Output</span>
+            <strong>Cost + Coverage</strong>
+            <span class="hero-stat-note">Shows tradeoffs and unmet days</span>
+          </div>
+        </div>
+
+        <div class="hero-brand-row" aria-label="Pass brands supported">
+          <img src="assets/epic-pass-logo.svg" alt="Epic Pass" />
+          <img src="assets/ikon-pass-inc-logo-vector.svg" alt="Ikon Pass" />
+          <img src="assets/indy-pass-logo.svg" alt="Indy Pass" />
+          <img src="assets/mountain-collective-logo.svg" alt="Mountain Collective" />
+        </div>
+      </aside>
+    </div>
   </header>
 
   <main class="card" id="app-main">
@@ -84,7 +145,7 @@
     <section class="dev-shell-card">
       <div class="dev-shell-head">
         <h2>Developer Mode</h2>
-        <p>Raw request/response only. Use <code>?devmode</code>, <code>?mode=devmode</code>, or <code>?=devmode</code>.</p>
+        <p>Full experience + troubleshooting panels. Use <code>?devmode</code>, <code>?mode=devmode</code>, or <code>?=devmode</code>.</p>
       </div>
 
       <details class="dev-debug" open>
