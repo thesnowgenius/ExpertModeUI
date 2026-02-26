@@ -3,22 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="no-referrer" />
+  <meta
+    http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://pass-picker-expert-mode-multi.onrender.com; object-src 'none'; base-uri 'none'; form-action 'self'"
+  />
   <title>Snow Genius — Expert Mode</title>
   <link rel="preload" href="resorts.json" as="fetch" crossorigin="anonymous">
-  <script>
-    (() => {
-      const params = new URLSearchParams(window.location.search || "");
-      const emptyKeyValue = (params.get("") || "").toLowerCase();
-      const modeValue = (params.get("mode") || "").toLowerCase();
-      const devMode =
-        params.has("devmode") ||
-        modeValue === "devmode" ||
-        emptyKeyValue === "devmode" ||
-        /(?:^|[?&=])devmode(?:[=&]|$)/i.test(window.location.search || "");
-      window.__SNOW_GENIUS_DEV_MODE__ = devMode;
-      if (devMode) document.documentElement.classList.add("dev-mode");
-    })();
-  </script>
+  <script src="assets/bootstrap.js?v=20260226a"></script>
   <link rel="stylesheet" href="assets/styles.css?v=20260226d" />
 </head>
 <body>
@@ -39,7 +31,7 @@
       <div id="riders" class="rows">
         <!-- First rider row (Stable-4 style) -->
         <div class="row rider-row">
-          <input type="number" min="0" placeholder="Age" class="input rider-age" aria-label="Rider age" />
+          <input type="number" min="0" max="120" placeholder="Age" class="input rider-age" aria-label="Rider age" />
           <select class="select rider-category" aria-label="Rider category">
             <option value="">None</option>
             <option value="military">Military</option>
@@ -63,17 +55,17 @@
         <!-- First resort row -->
         <div class="row resort-row">
           <div class="typeahead">
-            <input type="text" class="input resort-input" placeholder="Start typing a resort…" autocomplete="off" aria-label="Resort" />
-            <ul class="suggestions" role="listbox"></ul>
+            <input type="text" class="input resort-input" placeholder="Start typing a resort…" autocomplete="off" maxlength="120" aria-label="Resort" />
+            <ul class="suggestions" role="listbox" hidden></ul>
           </div>
-          <input type="number" min="1" class="input days-input" placeholder="Days" aria-label="Days requested" />
+          <input type="number" min="1" max="60" class="input days-input" placeholder="Days" aria-label="Days requested" />
           <label class="chk"><input type="checkbox" class="no-weekends" /> Only Weekdays</label>
           <label class="chk"><input type="checkbox" class="no-blackouts" /> No blackout dates</label>
           <button type="button" class="btn subtle remove-resort">Remove</button>
         </div>
       </div>
 
-      <div class="resort-submit-row" style="display:flex;justify-content:flex-end;gap:10px;margin-top:12px;padding-top:12px;">
+      <div class="resort-submit-row">
         <button id="clear" class="btn subtle">Clear</button>
         <button id="submit" class="btn primary">Submit</button>
       </div>

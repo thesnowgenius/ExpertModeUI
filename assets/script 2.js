@@ -1,11 +1,39 @@
 // Configuration
-const API_URL = (new URLSearchParams(location.search).get('api') || '').trim() || 'https://pass-picker-expert-mode-multi.onrender.com/score_multi_pass';
+const DEFAULT_API_URL = 'https://pass-picker-expert-mode-multi.onrender.com/score_multi_pass';
+const ALLOWED_REMOTE_API_HOSTS = new Set(['pass-picker-expert-mode-multi.onrender.com']);
+const REQUEST_TIMEOUT_MS = 20000;
+const API_URL = resolveApiUrl(window.API_URL, DEFAULT_API_URL);
 const RESORTS_URL = 'resorts.json'; // expects full resorts.json in same directory (no fake data).
 
 // State
 let riders = [];
 let resorts = [];
 const categories = ['none','military','student','nurse'];
+
+function isLocalDevHost(hostname){
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+}
+
+function isAllowedApiUrl(url){
+  if(!url || (url.protocol !== 'https:' && url.protocol !== 'http:')) return false;
+  if(url.origin === window.location.origin) return true;
+  if(isLocalDevHost(url.hostname)) return true;
+  return url.protocol === 'https:' && ALLOWED_REMOTE_API_HOSTS.has(url.hostname);
+}
+
+function resolveApiUrl(candidate, fallback){
+  const fallbackUrl = new URL(fallback, window.location.href);
+  const rawCandidate = typeof candidate === 'string' ? candidate.trim() : '';
+  if(!rawCandidate) return fallbackUrl.toString();
+  try{
+    const parsed = new URL(rawCandidate, window.location.href);
+    if(!isAllowedApiUrl(parsed)) throw new Error('endpoint is not in the allowlist');
+    return parsed.toString();
+  }catch(err){
+    console.warn('Ignoring unsafe API_URL override', err);
+    return fallbackUrl.toString();
+  }
+}
 
 // UI helpers
 function el(tag, attrs={}, ...children){
@@ -68,7 +96,9 @@ let RESORTS = [];
 async function loadResorts(){
   try{
     const r = await fetch(RESORTS_URL);
-    RESORTS = await r.json();
+    if(!r.ok) throw new Error(`Failed to load resorts (${r.status})`);
+    const data = await r.json();
+    RESORTS = Array.isArray(data) ? data : [];
   }catch(e){
     console.error('Failed to load resorts.json', e);
   }
@@ -136,13 +166,30 @@ document.getElementById('reset').onclick = ()=> location.reload();
 document.getElementById('solve').onclick = async () => {
   const payload = buildPayload();
   document.getElementById('rawRequest').textContent = JSON.stringify(payload, null, 2);
+  let timeoutId = null;
   try{
-    const r = await fetch(API_URL, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)});
+    const controller = new AbortController();
+    timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const r = await fetch(API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      mode:'cors',
+      credentials:'omit',
+      redirect:'error',
+      referrerPolicy:'no-referrer',
+      cache:'no-store',
+      body: JSON.stringify(payload),
+      signal: controller.signal
+    });
+    if(!r.ok) throw new Error(`Request failed (${r.status})`);
     const data = await r.json();
     document.getElementById('rawResponse').textContent = JSON.stringify(data, null, 2);
     renderSolutions(data);
   }catch(e){
-    document.getElementById('rawResponse').textContent = 'Request failed: ' + e.message;
+    const message = e && e.name === 'AbortError' ? `Request timed out after ${REQUEST_TIMEOUT_MS / 1000}s` : e.message;
+    document.getElementById('rawResponse').textContent = 'Request failed: ' + message;
+  }finally{
+    if(timeoutId !== null) window.clearTimeout(timeoutId);
   }
 };
 

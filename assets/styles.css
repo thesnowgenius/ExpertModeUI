@@ -261,7 +261,6 @@ h1{
   margin:0;
   padding:6px;
   list-style:none;
-  display:none;
   max-height:240px;
   overflow:auto;
   border-radius:16px;
@@ -270,6 +269,10 @@ h1{
   backdrop-filter:blur(12px);
   -webkit-backdrop-filter:blur(12px);
   box-shadow:var(--shadow-md);
+}
+
+.suggestions[hidden]{
+  display:none;
 }
 
 .suggestions li{

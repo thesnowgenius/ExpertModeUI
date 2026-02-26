@@ -1,8 +1,19 @@
 (() => {
-  const API_URL = window.API_URL || "https://pass-picker-expert-mode-multi.onrender.com/score_pass";
+  const DEFAULT_API_URL = "https://pass-picker-expert-mode-multi.onrender.com/score_pass";
+  const ALLOWED_REMOTE_API_HOSTS = new Set(["pass-picker-expert-mode-multi.onrender.com"]);
   const IKON_LOGO_SRC = "assets/ikon-pass-inc-logo-vector.svg";
   const MIN_TYPEAHEAD_CHARS = 3;
   const MAX_SUGGESTIONS = 10;
+  const REQUEST_TIMEOUT_MS = 20000;
+  const MAX_RIDERS = 12;
+  const MAX_RESORTS = 20;
+  const MAX_AGE = 120;
+  const MAX_DAYS_PER_RESORT = 60;
+  const MAX_TOTAL_REQUESTED_DAYS = 365;
+  const MAX_RESORT_INPUT_LENGTH = 120;
+  const MAX_RESORT_ID_LENGTH = 80;
+  const MAX_RESORT_CATALOG_ROWS = 20000;
+  const API_URL = resolveApiUrl(window.API_URL, DEFAULT_API_URL);
   const isDevMode = (() => {
     if (typeof window.__SNOW_GENIUS_DEV_MODE__ === "boolean") {
       return window.__SNOW_GENIUS_DEV_MODE__;
@@ -39,6 +50,56 @@
   let resortByNormalizedName = new Map();
   let typeaheadCounter = 0;
 
+  function isLocalDevHost(hostname) {
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+  }
+
+  function isAllowedApiUrl(url) {
+    if (!url || (url.protocol !== "https:" && url.protocol !== "http:")) {
+      return false;
+    }
+
+    if (url.origin === window.location.origin) {
+      return true;
+    }
+
+    if (isLocalDevHost(url.hostname)) {
+      return true;
+    }
+
+    return url.protocol === "https:" && ALLOWED_REMOTE_API_HOSTS.has(url.hostname);
+  }
+
+  function resolveApiUrl(candidate, fallback) {
+    const fallbackUrl = new URL(fallback, window.location.href);
+    const rawCandidate = typeof candidate === "string" ? candidate.trim() : "";
+    if (!rawCandidate) {
+      return fallbackUrl.toString();
+    }
+
+    try {
+      const parsed = new URL(rawCandidate, window.location.href);
+      if (!isAllowedApiUrl(parsed)) {
+        throw new Error("endpoint is not in the allowlist");
+      }
+      return parsed.toString();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "invalid URL";
+      console.warn(`Ignoring unsafe API_URL override (${message})`);
+      return fallbackUrl.toString();
+    }
+  }
+
+  function stripControlChars(value) {
+    return String(value || "").replace(/[\u0000-\u001F\u007F]/g, "");
+  }
+
+  function cleanShortText(value, maxLength) {
+    const text = stripControlChars(value).trim();
+    if (!maxLength || text.length <= maxLength) return text;
+    return text.slice(0, maxLength).trim();
+  }
+
   function normalizeText(value) {
     return String(value || "")
       .trim()
@@ -61,11 +122,12 @@
   }
 
   function toCurrency(value) {
+    const amount = Number(value);
     return new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
       maximumFractionDigits: 0,
-    }).format(Number(value || 0));
+    }).format(Number.isFinite(amount) ? amount : 0);
   }
 
   function setStatus(message) {
@@ -95,7 +157,7 @@
 
   function clearResults() {
     if (els.results) {
-      els.results.innerHTML = "";
+      els.results.replaceChildren();
     }
   }
 
@@ -121,14 +183,17 @@
   function parseResortRows(list) {
     return (Array.isArray(list) ? list : [])
       .map((row) => {
-        const id = row.resort_id ?? row.id ?? row.ResortID ?? row.ResortId ?? row.slug ?? "";
-        const name = row.resort_name ?? row.name ?? row.ResortName ?? row.title ?? "";
-        const state = row.state ?? row.State ?? "";
+        const rawId = row.resort_id ?? row.id ?? row.ResortID ?? row.ResortId ?? row.slug ?? "";
+        const rawName = row.resort_name ?? row.name ?? row.ResortName ?? row.title ?? "";
+        const rawState = row.state ?? row.State ?? "";
+        const id = cleanShortText(rawId, MAX_RESORT_ID_LENGTH);
+        const name = cleanShortText(rawName, MAX_RESORT_INPUT_LENGTH);
+        const state = cleanShortText(rawState, 32);
         if (!id || !name) return null;
         const result = {
-          id: String(id).trim(),
-          name: String(name).trim(),
-          state: String(state || "").trim(),
+          id,
+          name,
+          state,
         };
         result.label = resortLabel(result);
         result.searchText = normalizeText(`${result.name} ${result.label} ${result.id}`);
@@ -138,7 +203,10 @@
   }
 
   function loadResorts() {
-    return fetch("resorts.json")
+    return fetch("resorts.json", {
+      credentials: "same-origin",
+      redirect: "error",
+    })
       .then((response) => {
         if (!response.ok) {
           throw new Error(`Failed to load resorts (${response.status})`);
@@ -146,6 +214,12 @@
         return response.json();
       })
       .then((json) => {
+        if (!Array.isArray(json)) {
+          throw new Error("Resort list format is invalid");
+        }
+        if (json.length > MAX_RESORT_CATALOG_ROWS) {
+          throw new Error("Resort list is unexpectedly large");
+        }
         resortCatalog = parseResortRows(json);
         resortCatalog.sort((a, b) => a.name.localeCompare(b.name));
         resortById = new Map();
@@ -166,7 +240,7 @@
     const row = document.createElement("div");
     row.className = "row rider-row";
     row.innerHTML = `
-      <input type="number" min="0" placeholder="Age" class="input rider-age" aria-label="Rider age" />
+      <input type="number" min="0" max="${MAX_AGE}" placeholder="Age" class="input rider-age" aria-label="Rider age" />
       <select class="select rider-category" aria-label="Rider category">
         <option value="">None</option>
         <option value="military">Military</option>
@@ -184,10 +258,10 @@
     row.className = "row resort-row";
     row.innerHTML = `
       <div class="typeahead">
-        <input type="text" class="input resort-input" placeholder="Start typing a resort…" autocomplete="off" aria-label="Resort" />
-        <ul class="suggestions" role="listbox"></ul>
+        <input type="text" class="input resort-input" placeholder="Start typing a resort…" autocomplete="off" maxlength="${MAX_RESORT_INPUT_LENGTH}" aria-label="Resort" />
+        <ul class="suggestions" role="listbox" hidden></ul>
       </div>
-      <input type="number" min="1" class="input days-input" placeholder="Days" aria-label="Days requested" />
+      <input type="number" min="1" max="${MAX_DAYS_PER_RESORT}" class="input days-input" placeholder="Days" aria-label="Days requested" />
       <label class="chk"><input type="checkbox" class="no-weekends" /> Only Weekdays</label>
       <label class="chk"><input type="checkbox" class="no-blackouts" /> No blackout dates</label>
       <button type="button" class="btn subtle remove-resort">Remove</button>
@@ -254,14 +328,15 @@
     input.setAttribute("aria-expanded", "false");
     input.setAttribute("aria-controls", listId);
     input.setAttribute("aria-haspopup", "listbox");
+    list.hidden = true;
 
     let suggestions = [];
     let activeIndex = -1;
     let closeTimer = null;
 
     function closeSuggestions() {
-      list.innerHTML = "";
-      list.style.display = "none";
+      list.replaceChildren();
+      list.hidden = true;
       input.setAttribute("aria-expanded", "false");
       input.removeAttribute("aria-activedescendant");
       suggestions = [];
@@ -287,7 +362,7 @@
 
     function renderSuggestions(items) {
       suggestions = items;
-      list.innerHTML = "";
+      list.replaceChildren();
       if (!items.length) {
         closeSuggestions();
         return;
@@ -308,7 +383,7 @@
         list.appendChild(li);
       });
 
-      list.style.display = "block";
+      list.hidden = false;
       input.setAttribute("aria-expanded", "true");
       setActiveIndex(0);
     }
@@ -332,7 +407,7 @@
 
     input.addEventListener("input", updateSuggestions);
     input.addEventListener("keydown", (event) => {
-      const hasOpenList = suggestions.length > 0 && list.style.display !== "none";
+      const hasOpenList = suggestions.length > 0 && !list.hidden;
       if (event.key === "ArrowDown" && hasOpenList) {
         event.preventDefault();
         setActiveIndex((activeIndex + 1) % suggestions.length);
@@ -385,8 +460,8 @@
   }
 
   function resetForm() {
-    els.ridersWrap.innerHTML = "";
-    els.resortsWrap.innerHTML = "";
+    els.ridersWrap.replaceChildren();
+    els.resortsWrap.replaceChildren();
     els.ridersWrap.appendChild(createRiderRow());
     els.resortsWrap.appendChild(createResortRow());
     els.rawRequest.textContent = "{}";
@@ -398,18 +473,29 @@
 
   function buildRequest() {
     const errors = [];
+    let totalRequestedDays = 0;
 
-    const riders = Array.from(els.ridersWrap.querySelectorAll(".rider-row")).map((row, index) => {
+    const riderRows = Array.from(els.ridersWrap.querySelectorAll(".rider-row"));
+    if (riderRows.length > MAX_RIDERS) {
+      errors.push(`Maximum ${MAX_RIDERS} riders allowed.`);
+    }
+
+    const riders = riderRows.map((row, index) => {
       const ageInput = row.querySelector(".rider-age");
       const categorySelect = row.querySelector(".rider-category");
       const ageText = String(ageInput?.value || "").trim();
       const age = ageText === "" ? NaN : Number(ageText);
-      if (!Number.isInteger(age) || age < 0) {
-        errors.push(`Rider ${index + 1}: age is required and must be 0 or greater.`);
+      if (!Number.isInteger(age) || age < 0 || age > MAX_AGE) {
+        errors.push(`Rider ${index + 1}: age is required and must be between 0 and ${MAX_AGE}.`);
+      }
+
+      const category = canonicalizeCategory(categorySelect?.value) || null;
+      if (category && !["military", "student", "medical"].includes(category)) {
+        errors.push(`Rider ${index + 1}: category is invalid.`);
       }
       return {
-        age: Number.isInteger(age) && age >= 0 ? age : 0,
-        category: canonicalizeCategory(categorySelect?.value) || null,
+        age: Number.isInteger(age) && age >= 0 && age <= MAX_AGE ? age : 0,
+        category,
       };
     });
 
@@ -417,11 +503,16 @@
       errors.push("Add at least one rider.");
     }
 
+    const resortRows = Array.from(els.resortsWrap.querySelectorAll(".resort-row"));
+    if (resortRows.length > MAX_RESORTS) {
+      errors.push(`Maximum ${MAX_RESORTS} resort rows allowed.`);
+    }
+
     const resorts = [];
-    Array.from(els.resortsWrap.querySelectorAll(".resort-row")).forEach((row, index) => {
+    resortRows.forEach((row, index) => {
       const resortInput = row.querySelector(".resort-input");
       const daysInput = row.querySelector(".days-input");
-      const rawName = String(resortInput?.value || "").trim();
+      const rawName = cleanShortText(resortInput?.value || "", MAX_RESORT_INPUT_LENGTH);
       const daysValue = String(daysInput?.value || "").trim();
 
       const isBlank = !rawName && !daysValue;
@@ -432,10 +523,13 @@
       if (!rawName) {
         errors.push(`Resort ${index + 1}: resort name is required.`);
       }
+      if (String(resortInput?.value || "").trim().length > MAX_RESORT_INPUT_LENGTH) {
+        errors.push(`Resort ${index + 1}: resort name is too long.`);
+      }
 
       const days = Number(daysValue);
-      if (!Number.isInteger(days) || days < 1) {
-        errors.push(`Resort ${index + 1}: days must be a whole number of 1 or greater.`);
+      if (!Number.isInteger(days) || days < 1 || days > MAX_DAYS_PER_RESORT) {
+        errors.push(`Resort ${index + 1}: days must be a whole number between 1 and ${MAX_DAYS_PER_RESORT}.`);
       }
 
       const exact = findExactResortMatch(rawName);
@@ -443,20 +537,29 @@
         applySelectedResort(resortInput, exact);
       }
 
-      const selectedId = resortInput?.dataset.resortId || exact?.id || rawName;
-      const selectedName = resortInput?.dataset.resortName || exact?.name || rawName;
+      const selectedById = resortById.get(resortInput?.dataset.resortId || "");
+      const selectedResort = selectedById || exact || null;
+      if (rawName && !selectedResort) {
+        errors.push(`Resort ${index + 1}: choose a resort from the suggestions list.`);
+      }
 
-      resorts.push({
-        id: selectedId,
-        name: selectedName,
-        days: Number.isInteger(days) && days > 0 ? days : 0,
-        no_weekends: Boolean(row.querySelector(".no-weekends")?.checked),
-        no_blackouts: Boolean(row.querySelector(".no-blackouts")?.checked),
-      });
+      if (selectedResort && Number.isInteger(days) && days >= 1 && days <= MAX_DAYS_PER_RESORT) {
+        totalRequestedDays += days;
+        resorts.push({
+          id: selectedResort.id,
+          name: selectedResort.name,
+          days,
+          no_weekends: Boolean(row.querySelector(".no-weekends")?.checked),
+          no_blackouts: Boolean(row.querySelector(".no-blackouts")?.checked),
+        });
+      }
     });
 
     if (!resorts.length) {
       errors.push("Add at least one resort.");
+    }
+    if (totalRequestedDays > MAX_TOTAL_REQUESTED_DAYS) {
+      errors.push(`Total requested days cannot exceed ${MAX_TOTAL_REQUESTED_DAYS}.`);
     }
 
     return {
@@ -690,11 +793,20 @@
     setBusy(true);
     setStatus("Submitting request...");
 
+    let timeoutId = null;
     try {
+      const controller = new AbortController();
+      timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       const response = await fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        mode: "cors",
+        credentials: "omit",
+        redirect: "error",
+        referrerPolicy: "no-referrer",
+        cache: "no-store",
         body: JSON.stringify(payload),
+        signal: controller.signal,
       });
 
       const text = await response.text();
@@ -715,7 +827,12 @@
       renderResults(data);
       setStatus("Results updated.");
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Request failed";
+      const message =
+        error && typeof error === "object" && "name" in error && error.name === "AbortError"
+          ? `Request timed out after ${Math.round(REQUEST_TIMEOUT_MS / 1000)}s`
+          : error instanceof Error
+            ? error.message
+            : "Request failed";
       showError(message);
       if (!els.rawResponse.textContent || els.rawResponse.textContent === "{}") {
         els.rawResponse.textContent = JSON.stringify({ error: message }, null, 2);
@@ -723,16 +840,33 @@
       clearResults();
       setStatus("Request failed.");
     } finally {
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
       setBusy(false);
     }
   }
 
   function bindEvents() {
     els.addRider?.addEventListener("click", () => {
+      const count = els.ridersWrap.querySelectorAll(".rider-row").length;
+      if (count >= MAX_RIDERS) {
+        showError(`Maximum ${MAX_RIDERS} riders allowed.`);
+        setStatus("Add rider blocked.");
+        return;
+      }
+      showError("");
       els.ridersWrap.appendChild(createRiderRow());
     });
 
     els.addResort?.addEventListener("click", () => {
+      const count = els.resortsWrap.querySelectorAll(".resort-row").length;
+      if (count >= MAX_RESORTS) {
+        showError(`Maximum ${MAX_RESORTS} resort rows allowed.`);
+        setStatus("Add resort blocked.");
+        return;
+      }
+      showError("");
       els.resortsWrap.appendChild(createResortRow());
     });
 

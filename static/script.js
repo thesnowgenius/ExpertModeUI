@@ -1,5 +1,35 @@
 // Stable-4 like JS with per-resort checkboxes, 3-letter typeahead, logo hook
 document.addEventListener("DOMContentLoaded", () => {
+  const DEFAULT_API_URL = "https://pass-picker-expert-mode-multi.onrender.com/score_multi_pass";
+  const ALLOWED_REMOTE_API_HOSTS = new Set(["pass-picker-expert-mode-multi.onrender.com"]);
+  const REQUEST_TIMEOUT_MS = 20000;
+  const API_URL = resolveApiUrl(window.API_URL, DEFAULT_API_URL);
+
+  function isLocalDevHost(hostname) {
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
+  }
+
+  function isAllowedApiUrl(url) {
+    if (!url || (url.protocol !== "https:" && url.protocol !== "http:")) return false;
+    if (url.origin === window.location.origin) return true;
+    if (isLocalDevHost(url.hostname)) return true;
+    return url.protocol === "https:" && ALLOWED_REMOTE_API_HOSTS.has(url.hostname);
+  }
+
+  function resolveApiUrl(candidate, fallback) {
+    const fallbackUrl = new URL(fallback, window.location.href);
+    const rawCandidate = typeof candidate === "string" ? candidate.trim() : "";
+    if (!rawCandidate) return fallbackUrl.toString();
+    try {
+      const parsed = new URL(rawCandidate, window.location.href);
+      if (!isAllowedApiUrl(parsed)) throw new Error("endpoint is not in the allowlist");
+      return parsed.toString();
+    } catch (error) {
+      console.warn("Ignoring unsafe API_URL override", error);
+      return fallbackUrl.toString();
+    }
+  }
+
   const resortInputTemplate = () => {
     const div = document.createElement("div");
     div.className = "resort-row";
@@ -55,11 +85,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // typeahead logic: requires at least 3 chars
   async function loadResorts() {
-    const resp = await fetch("resorts.json");
-    return await resp.json();
+    const resp = await fetch("resorts.json", {
+      credentials: "same-origin",
+      redirect: "error",
+    });
+    if (!resp.ok) throw new Error(`Failed to load resorts (${resp.status})`);
+    const data = await resp.json();
+    return Array.isArray(data) ? data : [];
   }
   let resortsData = [];
-  loadResorts().then(d => { resortsData = d; });
+  loadResorts().then(d => { resortsData = d; }).catch(err => {
+    console.error("Failed to load resorts", err);
+    resortsData = [];
+  });
 
   document.addEventListener("input", (e) => {
     if (e.target.classList.contains("resort-name")) {
@@ -72,15 +110,15 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       dropdown.innerHTML = "";
       if (val.length >= 3) {
-        const matches = resortsData.filter(r => r.name.toLowerCase().includes(val));
+        const matches = resortsData.filter((r) => String(r?.name || "").toLowerCase().includes(val));
         matches.slice(0, 5).forEach(r => {
           const item = document.createElement("div");
           item.className = "typeahead-item";
-          item.textContent = r.name;
-          item.dataset.id = r.id;
+          item.textContent = String(r?.name || "");
+          item.dataset.id = String(r?.id ?? r?.resort_id ?? "");
           item.addEventListener("click", () => {
-            e.target.value = r.name;
-            e.target.dataset.id = r.id;
+            e.target.value = String(r?.name || "");
+            e.target.dataset.id = String(r?.id ?? r?.resort_id ?? "");
             dropdown.innerHTML = "";
           });
           dropdown.appendChild(item);
@@ -115,15 +153,36 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("raw-request").textContent = JSON.stringify(payload, null, 2);
 
     try {
-      const resp = await fetch("https://pass-picker-expert-mode-multi.onrender.com/score_multi_pass", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload)
-      });
-      const data = await resp.json();
-      document.getElementById("raw-response").textContent = JSON.stringify(data, null, 2);
+      let timeoutId = null;
+      try {
+        const controller = new AbortController();
+        timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+        const resp = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          mode: "cors",
+          credentials: "omit",
+          redirect: "error",
+          referrerPolicy: "no-referrer",
+          cache: "no-store",
+          body: JSON.stringify(payload),
+          signal: controller.signal
+        });
+        if (!resp.ok) {
+          throw new Error(`Request failed (${resp.status})`);
+        }
+        const data = await resp.json();
+        document.getElementById("raw-response").textContent = JSON.stringify(data, null, 2);
+      } finally {
+        if (timeoutId !== null) {
+          window.clearTimeout(timeoutId);
+        }
+      }
     } catch (err) {
-      document.getElementById("raw-response").textContent = JSON.stringify({error: err.message});
+      const message = err && err.name === "AbortError"
+        ? `Request timed out after ${REQUEST_TIMEOUT_MS / 1000}s`
+        : err.message;
+      document.getElementById("raw-response").textContent = JSON.stringify({error: message});
     }
   });
 });
