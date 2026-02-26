@@ -475,28 +475,47 @@
 
     const grouped = new Map();
     (Array.isArray(passes) ? passes : []).forEach((passItem) => {
-      const riderIndex = Number.isInteger(passItem.rider_index) ? passItem.rider_index : 0;
-      if (!grouped.has(riderIndex)) {
-        grouped.set(riderIndex, []);
+      const family = getPassFamily(passItem);
+      if (!grouped.has(family)) {
+        grouped.set(family, []);
       }
-      grouped.get(riderIndex).push(passItem);
+      grouped.get(family).push(passItem);
     });
 
-    Array.from(grouped.keys())
-      .sort((a, b) => a - b)
-      .forEach((riderIndex) => {
-        const items = grouped.get(riderIndex) || [];
+    Array.from(grouped.keys()).forEach((familyName) => {
+      const items = grouped.get(familyName) || [];
+      const familySection = document.createElement("div");
+      familySection.className = "pass-group pass-family-section";
+
+      const familyHeading = document.createElement("div");
+      familyHeading.className = "pass-group-title pass-family-title";
+      familyHeading.textContent = familyName;
+      familySection.appendChild(familyHeading);
+
+      const byRider = new Map();
+      items.forEach((passItem) => {
+        const riderIndex = Number.isInteger(passItem.rider_index) ? passItem.rider_index : 0;
+        if (!byRider.has(riderIndex)) {
+          byRider.set(riderIndex, []);
+        }
+        byRider.get(riderIndex).push(passItem);
+      });
+
+      Array.from(byRider.keys())
+        .sort((a, b) => a - b)
+        .forEach((riderIndex) => {
+          const riderItems = byRider.get(riderIndex) || [];
         const section = document.createElement("div");
-        section.className = "pass-group";
+        section.className = "pass-rider-subgroup";
 
         const heading = document.createElement("div");
-        heading.className = "pass-group-title";
-        const first = items[0] || {};
+        heading.className = "pass-rider-title";
+        const first = riderItems[0] || {};
         const cat = first.rider_category ? ` (${first.rider_category})` : "";
         heading.textContent = `Rider ${riderIndex + 1}${cat}`;
         section.appendChild(heading);
 
-        items.forEach((passItem) => {
+        riderItems.forEach((passItem) => {
           const row = document.createElement("div");
           row.className = "pass-item";
 
@@ -524,10 +543,40 @@
           section.appendChild(row);
         });
 
-        wrapper.appendChild(section);
-      });
+          familySection.appendChild(section);
+        });
+
+      wrapper.appendChild(familySection);
+    });
 
     return wrapper;
+  }
+
+  function getPassFamily(passItem) {
+    const explicit =
+      passItem?.pass_family ??
+      passItem?.pass_family_name ??
+      passItem?.family ??
+      passItem?.family_name ??
+      passItem?.passFamily ??
+      "";
+    const explicitText = String(explicit || "").trim();
+    if (explicitText) return explicitText;
+
+    const raw = String(passItem?.name || passItem?.pass_id || "").trim();
+    const lower = raw.toLowerCase();
+    if (!raw) return "Other Passes";
+    if (/\bikon\b/.test(lower)) return "Ikon Pass Family";
+    if (/\bindy\b/.test(lower)) return "Indy Pass Family";
+    if (/\bepic\b/.test(lower)) return "Epic Pass Family";
+    if (/\bmountain collective\b/.test(lower)) return "Mountain Collective";
+    if (/\bpowder alliance\b/.test(lower)) return "Powder Alliance";
+
+    const cleaned = raw
+      .replace(/\b(session|day|days)\b.*$/i, "")
+      .replace(/\s+\d+\b.*$/, "")
+      .trim();
+    return cleaned || raw;
   }
 
   function renderUnmet(unmet) {
