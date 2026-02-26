@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1180 420" role="img" aria-labelledby="title desc">
+  <title id="title">Expert Mode logo</title>
+  <desc id="desc">Stylized mountain mark with the words Expert Mode</desc>
+  <defs>
+    <style>
+      .ink{fill:#000}
+      .stroke{fill:none;stroke:#000;stroke-width:28;stroke-linecap:round;stroke-linejoin:round}
+      .word{font-family:"Arial Black","Helvetica Neue",Arial,sans-serif;font-weight:900;letter-spacing:2px}
+    </style>
+  </defs>
+
+  <!-- Mountain mark (approximation of provided logo) -->
+  <g transform="translate(30 30)">
+    <path class="stroke" d="M60 290 L210 95 L360 290" />
+    <path class="ink" d="M78 280 L165 190 L210 235 L255 190 L300 235 L342 193 L380 236 L270 346 L210 286 L150 346 Z"/>
+    <path fill="#fff" d="M119 244 L164 199 L193 228 L210 210 L226 228 L255 199 L284 228 L314 198 L339 224 L323 243 L299 220 L255 264 L226 235 L210 254 L194 235 L165 264 Z"/>
+  </g>
+
+  <!-- Wordmark -->
+  <g class="ink word" transform="translate(500 95)">
+    <text x="0" y="110" font-size="132">EXPERT</text>
+    <text x="0" y="248" font-size="132">MODE</text>
+  </g>
+</svg>
