@@ -7,8 +7,8 @@
     { key: "Mountain Collective", src: "assets/mountain-collective-logo.svg", match: /\bmountain\s+collective\b/i },
     { key: "Indy", src: "assets/indy-pass-logo.svg", match: /\bindy\b/i },
   ];
-  const MIN_TYPEAHEAD_CHARS = 3;
-  const MAX_SUGGESTIONS = 10;
+  const MIN_TYPEAHEAD_CHARS = 1;
+  const MAX_SUGGESTIONS = 100;
   const REQUEST_TIMEOUT_MS = 20000;
   const MAX_RIDERS = 12;
   const MAX_RESORTS = 20;
@@ -393,26 +393,42 @@
       setActiveIndex(0);
     }
 
-    function updateSuggestions() {
+    function updateSuggestions({ forceBrowse = false } = {}) {
       const rawValue = input.value.trim();
       const query = normalizeText(rawValue);
       if (rawValue !== (input.dataset.selectedLabel || "")) {
         clearSelectedResort(input);
       }
-      if (query.length < MIN_TYPEAHEAD_CHARS) {
+
+      if (!resortCatalog.length) {
         closeSuggestions();
         return;
       }
 
-      const matches = resortCatalog
-        .filter((resort) => resort.searchText.includes(query))
-        .slice(0, MAX_SUGGESTIONS);
+      if (!forceBrowse && query.length > 0 && query.length < MIN_TYPEAHEAD_CHARS) {
+        closeSuggestions();
+        return;
+      }
+
+      const matches = (query.length >= MIN_TYPEAHEAD_CHARS)
+        ? resortCatalog
+          .filter((resort) => resort.searchText.includes(query))
+          .slice(0, MAX_SUGGESTIONS)
+        : resortCatalog.slice(0, MAX_SUGGESTIONS);
       renderSuggestions(matches);
     }
 
-    input.addEventListener("input", updateSuggestions);
+    input.addEventListener("input", () => updateSuggestions());
+    input.addEventListener("click", () => {
+      updateSuggestions({ forceBrowse: true });
+    });
     input.addEventListener("keydown", (event) => {
       const hasOpenList = suggestions.length > 0 && !list.hidden;
+      if (event.key === "ArrowDown" && !hasOpenList) {
+        event.preventDefault();
+        updateSuggestions({ forceBrowse: true });
+        return;
+      }
       if (event.key === "ArrowDown" && hasOpenList) {
         event.preventDefault();
         setActiveIndex((activeIndex + 1) % suggestions.length);
@@ -439,9 +455,7 @@
         window.clearTimeout(closeTimer);
         closeTimer = null;
       }
-      if (normalizeText(input.value).length >= MIN_TYPEAHEAD_CHARS) {
-        updateSuggestions();
-      }
+      updateSuggestions({ forceBrowse: true });
     });
 
     input.addEventListener("blur", () => {
