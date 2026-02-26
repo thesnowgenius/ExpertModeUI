@@ -154,9 +154,9 @@
 
   function initializeModeUi() {
     document.body.classList.toggle("dev-mode", isDevMode);
-    if (els.hero) els.hero.hidden = isDevMode;
-    if (els.appMain) els.appMain.hidden = isDevMode;
-    if (els.footer) els.footer.hidden = isDevMode;
+    if (els.hero) els.hero.hidden = false;
+    if (els.appMain) els.appMain.hidden = false;
+    if (els.footer) els.footer.hidden = false;
     if (els.devShell) els.devShell.hidden = !isDevMode;
   }
 
