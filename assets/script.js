@@ -126,6 +126,10 @@
     return state ? `${resort.name}, ${state}` : resort.name;
   }
 
+  function startsWithQuery(value, query) {
+    return normalizeText(value).startsWith(query);
+  }
+
   function toCurrency(value) {
     const amount = Number(value);
     return new Intl.NumberFormat("en-US", {
@@ -412,7 +416,11 @@
 
       const matches = (query.length >= MIN_TYPEAHEAD_CHARS)
         ? resortCatalog
-          .filter((resort) => resort.searchText.includes(query))
+          .filter((resort) =>
+            startsWithQuery(resort.name, query) ||
+            startsWithQuery(resort.label, query) ||
+            startsWithQuery(resort.id, query)
+          )
           .slice(0, MAX_SUGGESTIONS)
         : resortCatalog.slice(0, MAX_SUGGESTIONS);
       renderSuggestions(matches);
