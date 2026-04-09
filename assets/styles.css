@@ -477,7 +477,17 @@ body{
   background:linear-gradient(135deg, rgba(10,132,255,.09), rgba(76,201,240,.08));
 }
 
-#results{padding:2px}
+#results{
+  padding:2px;
+  opacity:0;
+  transform:translateY(8px);
+  transition:opacity .24s ease, transform .24s ease;
+}
+
+#results.results-visible{
+  opacity:1;
+  transform:translateY(0);
+}
 
 .error-banner{
   margin:10px 0;

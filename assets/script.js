@@ -50,10 +50,64 @@
     formStatus: document.querySelector("#form-status"),
   };
 
+  let lastPostedHeight = 0;
+  let postHeightRafId = 0;
   let resortCatalog = [];
   let resortById = new Map();
   let resortByNormalizedName = new Map();
   let typeaheadCounter = 0;
+
+  function postHeight() {
+    const body = document.body;
+    const root = document.documentElement;
+    const height = Math.max(
+      body ? body.scrollHeight : 0,
+      root ? root.scrollHeight : 0,
+      body ? body.offsetHeight : 0,
+      root ? root.offsetHeight : 0
+    );
+
+    if (!Number.isFinite(height) || height <= 0) {
+      return;
+    }
+
+    if (height === lastPostedHeight) {
+      return;
+    }
+
+    lastPostedHeight = height;
+    window.parent.postMessage({ type: "setHeight", height }, "*");
+  }
+
+  function queueHeightPost() {
+    if (postHeightRafId) {
+      return;
+    }
+
+    postHeightRafId = window.requestAnimationFrame(() => {
+      postHeightRafId = 0;
+      postHeight();
+    });
+  }
+
+  function scrollToResults() {
+    if (!els.results) return;
+    const reduceMotion = Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+    const targetTop = Math.max(0, window.scrollY + els.results.getBoundingClientRect().top - 18);
+    window.scrollTo({
+      top: targetTop,
+      behavior: reduceMotion ? "auto" : "smooth",
+    });
+  }
+
+  function revealResults() {
+    if (!els.results) return;
+    els.results.classList.remove("results-visible");
+    window.requestAnimationFrame(() => {
+      els.results.classList.add("results-visible");
+      queueHeightPost();
+    });
+  }
 
   function isLocalDevHost(hostname) {
     return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]";
@@ -143,6 +197,7 @@
     if (els.formStatus) {
       els.formStatus.textContent = message || "";
     }
+    queueHeightPost();
   }
 
   function showError(message) {
@@ -150,10 +205,12 @@
     if (!message) {
       els.formError.hidden = true;
       els.formError.textContent = "";
+      queueHeightPost();
       return;
     }
     els.formError.hidden = false;
     els.formError.textContent = message;
+    queueHeightPost();
   }
 
   function initializeModeUi() {
@@ -162,12 +219,15 @@
     if (els.appMain) els.appMain.hidden = false;
     if (els.footer) els.footer.hidden = false;
     if (els.devShell) els.devShell.hidden = !isDevMode;
+    queueHeightPost();
   }
 
   function clearResults() {
     if (els.results) {
       els.results.replaceChildren();
+      els.results.classList.remove("results-visible");
     }
+    queueHeightPost();
   }
 
   function setBusy(isBusy) {
@@ -795,6 +855,7 @@
       empty.className = "result-card";
       empty.textContent = "No results returned.";
       els.results.appendChild(empty);
+      revealResults();
       return;
     }
 
@@ -839,6 +900,8 @@
 
       els.results.appendChild(card);
     });
+
+    revealResults();
   }
 
   async function submitRequest() {
@@ -891,6 +954,7 @@
 
       renderResults(data);
       setStatus("Results updated.");
+      scrollToResults();
     } catch (error) {
       const message =
         error && typeof error === "object" && "name" in error && error.name === "AbortError"
@@ -909,6 +973,7 @@
         window.clearTimeout(timeoutId);
       }
       setBusy(false);
+      queueHeightPost();
     }
   }
 
@@ -943,4 +1008,23 @@
   initializeModeUi();
   bindEvents();
   loadResorts();
+
+  window.addEventListener("load", postHeight);
+  window.addEventListener("resize", queueHeightPost);
+
+  const resizeObserver = typeof ResizeObserver === "function"
+    ? new ResizeObserver(() => queueHeightPost())
+    : null;
+  if (resizeObserver) {
+    if (document.body) resizeObserver.observe(document.body);
+    resizeObserver.observe(document.documentElement);
+  }
+
+  window.addEventListener("message", (event) => {
+    if (event.data?.type === "requestHeight") {
+      postHeight();
+    }
+  });
+
+  queueHeightPost();
 })();
