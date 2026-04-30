@@ -84,6 +84,11 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // typeahead logic: requires at least 3 chars
+  function hasPublicAccess(row) {
+    const rawPublicAccess = row?.public_access ?? row?.publicAccess ?? row?.PublicAccess ?? "";
+    return String(rawPublicAccess).trim().toLowerCase() === "yes";
+  }
+
   async function loadResorts() {
     const resp = await fetch("resorts.json", {
       credentials: "same-origin",
@@ -91,7 +96,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     if (!resp.ok) throw new Error(`Failed to load resorts (${resp.status})`);
     const data = await resp.json();
-    return Array.isArray(data) ? data : [];
+    return (Array.isArray(data) ? data : []).filter(hasPublicAccess);
   }
   let resortsData = [];
   loadResorts().then(d => { resortsData = d; }).catch(err => {

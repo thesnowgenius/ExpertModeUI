@@ -93,12 +93,16 @@ function addResortRow(rr){
 
 // Minimal typeahead using full resorts.json
 let RESORTS = [];
+function hasPublicAccess(row){
+  const rawPublicAccess = row?.public_access ?? row?.publicAccess ?? row?.PublicAccess ?? '';
+  return String(rawPublicAccess).trim().toLowerCase() === 'yes';
+}
 async function loadResorts(){
   try{
     const r = await fetch(RESORTS_URL);
     if(!r.ok) throw new Error(`Failed to load resorts (${r.status})`);
     const data = await r.json();
-    RESORTS = Array.isArray(data) ? data : [];
+    RESORTS = (Array.isArray(data) ? data : []).filter(hasPublicAccess);
   }catch(e){
     console.error('Failed to load resorts.json', e);
   }
