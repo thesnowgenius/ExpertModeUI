@@ -399,8 +399,14 @@
     return raw;
   }
 
+  function hasPublicAccess(row) {
+    const rawPublicAccess = row?.public_access ?? row?.publicAccess ?? row?.PublicAccess ?? "";
+    return normalizeText(rawPublicAccess) === "yes";
+  }
+
   function parseResortRows(list) {
     return (Array.isArray(list) ? list : [])
+      .filter((row) => hasPublicAccess(row))
       .map((row) => {
         const rawId = row.resort_id ?? row.id ?? row.ResortID ?? row.ResortId ?? row.slug ?? "";
         const rawName = row.resort_name ?? row.name ?? row.ResortName ?? row.title ?? "";
