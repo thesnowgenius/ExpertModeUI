@@ -41,7 +41,7 @@
       aliases: ["peak to peak poconos", "peak-to-peak poconos"],
     },
     { key: "perfect_season", alt: "Perfect Season Pass", src: "assets/pass-family-icons/perfect_season.svg", aliases: ["perfect season pass"] },
-    { key: "power_pass", alt: "Power Pass", src: "assets/pass-family-icons/power_pass.svg", aliases: ["power pass"] },
+    { key: "power_pass", alt: "Power Pass", src: "assets/pass-family-icons/power_pass_logo.png", aliases: ["power pass"] },
     {
       key: "ski_brule_bohemia",
       alt: "Ski Brule / Bohemia Pass",
@@ -52,7 +52,7 @@
     {
       key: "skiing_wisconsin_pass",
       alt: "Skiing Wisconsin Pass",
-      src: "assets/pass-family-icons/skiing_wisconsin_pass.svg",
+      src: "assets/pass-family-icons/skiwisconsin_logo.png",
       aliases: ["skiing wisconsin pass"],
     },
     {
@@ -65,14 +65,43 @@
     {
       key: "wisconsin_multi_resort",
       alt: "Wisconsin Multi Resort",
-      src: "assets/pass-family-icons/wisconsin_multi_resort.svg",
+      src: "assets/pass-family-icons/skiwisconsin_logo.png",
       aliases: ["wisconsin multi resort", "wisconsin resorts multi pass"],
     },
     { key: "wnep_ski_card", alt: "WNEP Ski Card", src: "assets/pass-family-icons/wnep_ski_card.svg", aliases: ["wnep ski card"] },
   ];
+  const MULTI_MOUNTAIN_PASS_FAMILIES = new Set([
+    "combo_49n_silver",
+    "epic",
+    "ikon",
+    "indy",
+    "mountain_collective",
+    "mt_hood_fusion",
+    "new_england_pass",
+    "ny_ski3",
+    "peak_to_peak_pocono",
+    "power_pass",
+    "ski_vermont_4",
+    "skiing_wisconsin_pass",
+    "uphill_new_england",
+    "wisconsin_multi_resort",
+  ]);
+  const PASS_PROVIDER_ICON_CONFIG = [
+    { key: "stratton", alt: "Stratton", src: "assets/pass-family-icons/stratton_logo.jpg", aliases: ["stratton mountain"] },
+  ];
   const PASS_FAMILY_ICON_BY_KEY = (() => {
     const map = new Map();
     PASS_FAMILY_ICON_CONFIG.forEach((icon) => {
+      map.set(icon.key, icon);
+      (icon.aliases || []).forEach((alias) => {
+        map.set(normalizePassFamilyKey(alias), icon);
+      });
+    });
+    return map;
+  })();
+  const PASS_PROVIDER_ICON_BY_KEY = (() => {
+    const map = new Map();
+    PASS_PROVIDER_ICON_CONFIG.forEach((icon) => {
       map.set(icon.key, icon);
       (icon.aliases || []).forEach((alias) => {
         map.set(normalizePassFamilyKey(alias), icon);
@@ -808,7 +837,7 @@
   }
 
   function resolvePassFamilyIcon(passItem, passSearchText) {
-    const candidates = [
+    const familyCandidates = [
       passItem?.pass_family,
       passItem?.pass_family_name,
       passItem?.family,
@@ -817,19 +846,49 @@
       getPassFamily(passItem),
     ];
 
-    for (const candidate of candidates) {
+    let familyIcon = null;
+    let familyKey = "";
+    for (const candidate of familyCandidates) {
       const normalized = normalizePassFamilyKey(candidate);
       if (!normalized) continue;
       const icon = PASS_FAMILY_ICON_BY_KEY.get(normalized);
+      if (icon) {
+        familyIcon = icon;
+        familyKey = icon.key || normalized;
+        break;
+      }
+    }
+
+    if (familyIcon && MULTI_MOUNTAIN_PASS_FAMILIES.has(familyKey)) {
+      return familyIcon;
+    }
+
+    const providerCandidates = [
+      passItem?.provider,
+      passItem?.provider_name,
+      passItem?.pass_provider,
+      passItem?.mountain,
+      passItem?.mountain_name,
+      passItem?.resort,
+      passItem?.resort_name,
+      passItem?.operator,
+      passItem?.brand,
+    ];
+    for (const candidate of providerCandidates) {
+      const normalized = normalizePassFamilyKey(candidate);
+      if (!normalized) continue;
+      const icon = PASS_PROVIDER_ICON_BY_KEY.get(normalized);
       if (icon) return icon;
     }
+
+    if (familyIcon) return familyIcon;
 
     const brandMatch = PASS_BRAND_LOGOS.find((brand) => brand.match.test(passSearchText));
     if (brandMatch) {
       return { key: brandMatch.key, alt: brandMatch.key, src: brandMatch.src };
     }
 
-    const fallbackFamily = candidates.find((candidate) => String(candidate || "").trim()) || passSearchText;
+    const fallbackFamily = familyCandidates.find((candidate) => String(candidate || "").trim()) || passSearchText;
     return getGeneratedPassFamilyBadge(fallbackFamily);
   }
 

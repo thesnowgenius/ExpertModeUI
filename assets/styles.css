@@ -635,9 +635,10 @@ body{
 }
 
 .pass-brand-logo{
-  width:auto;
+  width:2.2em;
   height:1em;
   object-fit:contain;
+  object-position:left center;
   padding:0;
   border:none;
   background:none;
