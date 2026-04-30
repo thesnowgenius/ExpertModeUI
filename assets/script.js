@@ -1,12 +1,92 @@
 (() => {
   const DEFAULT_API_URL = "https://pass-picker-expert-mode-multi.onrender.com/score_pass";
   const ALLOWED_REMOTE_API_HOSTS = new Set(["pass-picker-expert-mode-multi.onrender.com"]);
+  const PASS_FAMILY_ICON_CONFIG = [
+    { key: "alta_bird", alt: "Alta-Bird Pass", src: "assets/pass-family-icons/alta_bird.svg", aliases: ["alta bird pass"] },
+    { key: "aspen_snowmass", alt: "Aspen Snowmass", src: "assets/pass-family-icons/aspen_snowmass.svg", aliases: ["aspen snowmass"] },
+    { key: "berkshire_summit", alt: "Berkshire Summit", src: "assets/pass-family-icons/berkshire_summit.svg", aliases: ["berkshire summit"] },
+    { key: "cali_pass", alt: "Cali Pass", src: "assets/pass-family-icons/cali_pass.svg", aliases: ["cali pass"] },
+    {
+      key: "combo_49n_silver",
+      alt: "49 North + Silver Mountain",
+      src: "assets/pass-family-icons/combo_49n_silver.svg",
+      aliases: ["49 north + silver mountain", "49 north silver mountain", "combo 49n silver"],
+    },
+    { key: "epic", alt: "Epic Pass", src: "assets/epic-pass-logo.svg", aliases: ["epic pass"] },
+    { key: "ikon", alt: "Ikon Pass", src: "assets/ikon-pass-inc-logo-vector.svg", aliases: ["ikon pass"] },
+    { key: "indy", alt: "Indy Pass", src: "assets/indy-pass-logo.svg", aliases: ["indy pass"] },
+    { key: "labrador_song", alt: "Labrador / Song Pass", src: "assets/pass-family-icons/labrador_song.svg", aliases: ["labrador song pass"] },
+    { key: "legendary_pass", alt: "Legendary Pass", src: "assets/pass-family-icons/legendary_pass.svg", aliases: ["legendary pass"] },
+    { key: "michigan_pass", alt: "Michigan Pass", src: "assets/pass-family-icons/michigan_pass.svg", aliases: ["michigan pass"] },
+    {
+      key: "michigan_white_gold",
+      alt: "Michigan White Gold",
+      src: "assets/pass-family-icons/michigan_white_gold.svg",
+      aliases: ["michigan white gold pass"],
+    },
+    {
+      key: "mountain_collective",
+      alt: "Mountain Collective",
+      src: "assets/mountain-collective-logo.svg",
+      aliases: ["mountain collective", "mountain collective pass"],
+    },
+    { key: "mt_hood_fusion", alt: "Mt. Hood Fusion Pass", src: "assets/pass-family-icons/mt_hood_fusion.svg", aliases: ["mt hood fusion", "mt hood fusion pass"] },
+    { key: "new_england_pass", alt: "New England Pass", src: "assets/pass-family-icons/new_england_pass.svg", aliases: ["new england pass"] },
+    { key: "no_boundaries", alt: "No Boundaries Pass", src: "assets/pass-family-icons/no_boundaries.svg", aliases: ["no boundaries pass"] },
+    { key: "ny_ski3", alt: "NY Ski3 Pass", src: "assets/pass-family-icons/ny_ski3.svg", aliases: ["ny ski3 pass", "ski3"] },
+    {
+      key: "peak_to_peak_pocono",
+      alt: "Peak-to-Peak Poconos",
+      src: "assets/pass-family-icons/peak_to_peak_pocono.svg",
+      aliases: ["peak to peak poconos", "peak-to-peak poconos"],
+    },
+    { key: "perfect_season", alt: "Perfect Season Pass", src: "assets/pass-family-icons/perfect_season.svg", aliases: ["perfect season pass"] },
+    { key: "power_pass", alt: "Power Pass", src: "assets/pass-family-icons/power_pass.svg", aliases: ["power pass"] },
+    {
+      key: "ski_brule_bohemia",
+      alt: "Ski Brule / Bohemia Pass",
+      src: "assets/pass-family-icons/ski_brule_bohemia.svg",
+      aliases: ["ski brule bohemia pass", "ski brule / bohemia pass"],
+    },
+    { key: "ski_vermont_4", alt: "Ski Vermont 4 Pass", src: "assets/pass-family-icons/ski_vermont_4.svg", aliases: ["ski vermont 4 pass"] },
+    {
+      key: "skiing_wisconsin_pass",
+      alt: "Skiing Wisconsin Pass",
+      src: "assets/pass-family-icons/skiing_wisconsin_pass.svg",
+      aliases: ["skiing wisconsin pass"],
+    },
+    {
+      key: "uphill_new_england",
+      alt: "Uphill New England Pass",
+      src: "assets/pass-family-icons/uphill_new_england.svg",
+      aliases: ["uphill new england"],
+    },
+    { key: "white_mountain_sup", alt: "White Mountain Super Pass", src: "assets/pass-family-icons/white_mountain_sup.svg", aliases: ["white mountain super pass"] },
+    {
+      key: "wisconsin_multi_resort",
+      alt: "Wisconsin Multi Resort",
+      src: "assets/pass-family-icons/wisconsin_multi_resort.svg",
+      aliases: ["wisconsin multi resort", "wisconsin resorts multi pass"],
+    },
+    { key: "wnep_ski_card", alt: "WNEP Ski Card", src: "assets/pass-family-icons/wnep_ski_card.svg", aliases: ["wnep ski card"] },
+  ];
+  const PASS_FAMILY_ICON_BY_KEY = (() => {
+    const map = new Map();
+    PASS_FAMILY_ICON_CONFIG.forEach((icon) => {
+      map.set(icon.key, icon);
+      (icon.aliases || []).forEach((alias) => {
+        map.set(normalizePassFamilyKey(alias), icon);
+      });
+    });
+    return map;
+  })();
   const PASS_BRAND_LOGOS = [
     { key: "IKON", src: "assets/ikon-pass-inc-logo-vector.svg", match: /\bikon\b/i },
     { key: "Epic", src: "assets/epic-pass-logo.svg", match: /\bepic\b/i },
     { key: "Mountain Collective", src: "assets/mountain-collective-logo.svg", match: /\bmountain\s+collective\b/i },
     { key: "Indy", src: "assets/indy-pass-logo.svg", match: /\bindy\b/i },
   ];
+  const GENERATED_PASS_FAMILY_BADGES = new Map();
   const MIN_TYPEAHEAD_CHARS = 1;
   const MAX_SUGGESTIONS = 100;
   const REQUEST_TIMEOUT_MS = 20000;
@@ -164,6 +244,47 @@
       .trim()
       .toLowerCase()
       .replace(/\s+/g, " ");
+  }
+
+  function normalizePassFamilyKey(value) {
+    return String(value || "")
+      .trim()
+      .toLowerCase()
+      .replace(/&/g, " and ")
+      .replace(/\+/g, " plus ")
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .replace(/_+/g, "_");
+  }
+
+  function toBadgeLabel(value) {
+    const parts = String(value || "").toUpperCase().match(/[A-Z0-9]+/g) || [];
+    const trimmed = parts.filter((part) => !["PASS", "FAMILY", "CARD", "THE"].includes(part));
+    const source = trimmed.length ? trimmed : parts;
+    if (!source.length) return "PASS";
+    if (source.length === 1) {
+      return source[0].slice(0, 4) || "PASS";
+    }
+    const compact = source.map((part) => part[0]).join("");
+    return (compact || source.join("")).slice(0, 4);
+  }
+
+  function getGeneratedPassFamilyBadge(familyName) {
+    const normalized = normalizePassFamilyKey(familyName);
+    if (!normalized) return null;
+    if (GENERATED_PASS_FAMILY_BADGES.has(normalized)) {
+      return GENERATED_PASS_FAMILY_BADGES.get(normalized);
+    }
+    const hue = Array.from(normalized).reduce((acc, ch) => acc + ch.charCodeAt(0), 0) % 360;
+    const label = toBadgeLabel(familyName);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="72" height="28" viewBox="0 0 72 28"><rect x="1" y="1" width="70" height="26" rx="5" fill="hsl(${hue} 58% 36%)" stroke="rgba(255,255,255,0.35)"/><text x="36" y="18" text-anchor="middle" font-size="12" font-family="Arial, Helvetica, sans-serif" font-weight="700" fill="#fff">${label}</text></svg>`;
+    const badge = {
+      key: normalized,
+      alt: String(familyName || "Pass family").trim() || "Pass family",
+      src: `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`,
+    };
+    GENERATED_PASS_FAMILY_BADGES.set(normalized, badge);
+    return badge;
   }
 
   function formatState(state) {
@@ -686,16 +807,41 @@
     return "";
   }
 
-  function appendPassBrandLogos(container, passSearchText) {
-    PASS_BRAND_LOGOS.forEach((brand) => {
-      if (!brand.match.test(passSearchText)) return;
-      const logo = document.createElement("img");
-      logo.className = "pass-brand-logo";
-      logo.src = brand.src;
-      logo.alt = brand.key;
-      logo.loading = "lazy";
-      container.appendChild(logo);
-    });
+  function resolvePassFamilyIcon(passItem, passSearchText) {
+    const candidates = [
+      passItem?.pass_family,
+      passItem?.pass_family_name,
+      passItem?.family,
+      passItem?.family_name,
+      passItem?.passFamily,
+      getPassFamily(passItem),
+    ];
+
+    for (const candidate of candidates) {
+      const normalized = normalizePassFamilyKey(candidate);
+      if (!normalized) continue;
+      const icon = PASS_FAMILY_ICON_BY_KEY.get(normalized);
+      if (icon) return icon;
+    }
+
+    const brandMatch = PASS_BRAND_LOGOS.find((brand) => brand.match.test(passSearchText));
+    if (brandMatch) {
+      return { key: brandMatch.key, alt: brandMatch.key, src: brandMatch.src };
+    }
+
+    const fallbackFamily = candidates.find((candidate) => String(candidate || "").trim()) || passSearchText;
+    return getGeneratedPassFamilyBadge(fallbackFamily);
+  }
+
+  function appendPassBrandLogo(container, passItem, passSearchText) {
+    const icon = resolvePassFamilyIcon(passItem, passSearchText);
+    if (!icon) return;
+    const logo = document.createElement("img");
+    logo.className = "pass-brand-logo";
+    logo.src = icon.src;
+    logo.alt = icon.alt || icon.key || "Pass family";
+    logo.loading = "lazy";
+    container.appendChild(logo);
   }
 
   function appendPassRow(container, passItem) {
@@ -706,7 +852,7 @@
     left.className = "pass-name";
     const passName = passItem.name || passItem.pass_id || "Unknown pass";
     const passSearchText = `${passItem.name || ""} ${passItem.pass_id || ""}`;
-    appendPassBrandLogos(left, passSearchText);
+    appendPassBrandLogo(left, passItem, passSearchText);
     const label = document.createElement("span");
     const passUrl = getPassItemUrl(passItem);
     if (passUrl) {
