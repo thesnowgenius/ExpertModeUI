@@ -5,7 +5,7 @@
     { key: "alta_bird", alt: "Alta-Bird Pass", src: "assets/pass-family-icons/alta_bird.svg", aliases: ["alta bird pass"] },
     { key: "aspen_snowmass", alt: "Aspen Snowmass", src: "assets/pass-family-icons/aspen_snowmass.svg", aliases: ["aspen snowmass"] },
     { key: "berkshire_summit", alt: "Berkshire Summit", src: "assets/pass-family-icons/berkshire_summit.svg", aliases: ["berkshire summit"] },
-    { key: "cali_pass", alt: "Cali Pass", src: "assets/pass-family-icons/cali_pass.svg", aliases: ["cali pass"] },
+    { key: "cali_pass", alt: "Cali Pass", src: "assets/pass-family-icons/cali_pass_logo.png", aliases: ["cali pass"] },
     {
       key: "combo_49n_silver",
       alt: "49 North + Silver Mountain",
