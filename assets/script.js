@@ -842,6 +842,26 @@
     return "";
   }
 
+  function buildFaviconIconFromUrl(rawUrl) {
+    const url = String(rawUrl || "").trim();
+    if (!url) return null;
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+        return null;
+      }
+      const host = parsed.hostname.replace(/^www\./i, "");
+      if (!host) return null;
+      return {
+        key: host,
+        alt: host,
+        src: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`,
+      };
+    } catch (_error) {
+      return null;
+    }
+  }
+
   function resolvePassFamilyIcon(passItem, passSearchText) {
     const familyCandidates = [
       passItem?.pass_family,
@@ -892,6 +912,11 @@
     const brandMatch = PASS_BRAND_LOGOS.find((brand) => brand.match.test(passSearchText));
     if (brandMatch) {
       return { key: brandMatch.key, alt: brandMatch.key, src: brandMatch.src };
+    }
+
+    const faviconIcon = buildFaviconIconFromUrl(getPassItemUrl(passItem));
+    if (faviconIcon) {
+      return faviconIcon;
     }
 
     const fallbackFamily = familyCandidates.find((candidate) => String(candidate || "").trim()) || passSearchText;
