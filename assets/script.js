@@ -53,7 +53,7 @@
       key: "skiing_wisconsin_pass",
       alt: "Skiing Wisconsin Pass",
       src: "assets/pass-family-icons/skiwisconsin_logo.png",
-      aliases: ["skiing wisconsin pass"],
+      aliases: ["skiing wisconsin pass", "skiing wisconsin passport", "skiing_wisconsin_passport"],
     },
     {
       key: "uphill_new_england",
@@ -61,7 +61,12 @@
       src: "assets/pass-family-icons/uphill_new_england.svg",
       aliases: ["uphill new england"],
     },
-    { key: "white_mountain_sup", alt: "White Mountain Super Pass", src: "assets/pass-family-icons/white_mountain_sup.svg", aliases: ["white mountain super pass"] },
+    {
+      key: "white_mountain_sup",
+      alt: "White Mountain Super Pass",
+      src: "assets/pass-family-icons/white_mountain_sup.svg",
+      aliases: ["white mountain super pass", "white mountain super", "white_mountain_super"],
+    },
     {
       key: "wisconsin_multi_resort",
       alt: "Wisconsin Multi Resort",
