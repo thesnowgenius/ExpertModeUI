@@ -15,7 +15,12 @@
     { key: "epic", alt: "Epic Pass", src: "assets/epic-pass-logo.svg", aliases: ["epic pass"] },
     { key: "ikon", alt: "Ikon Pass", src: "assets/ikon-pass-inc-logo-vector.svg", aliases: ["ikon pass"] },
     { key: "indy", alt: "Indy Pass", src: "assets/indy-pass-logo.svg", aliases: ["indy pass"] },
-    { key: "labrador_song", alt: "Labrador / Song Pass", src: "assets/pass-family-icons/labrador_song.svg", aliases: ["labrador song pass"] },
+    {
+      key: "labrador_song",
+      alt: "Labrador / Song Pass",
+      src: "assets/pass-family-icons/labrador_song.svg",
+      aliases: ["labrador song pass", "labrador song individual pass", "labrador_song_individual_pass"],
+    },
     { key: "legendary_pass", alt: "Legendary Pass", src: "assets/pass-family-icons/legendary_pass.svg", aliases: ["legendary pass"] },
     { key: "michigan_pass", alt: "Michigan Pass", src: "assets/pass-family-icons/michigan_pass.svg", aliases: ["michigan pass"] },
     {
@@ -847,27 +852,23 @@
     return "";
   }
 
-  function buildFaviconIconFromUrl(rawUrl) {
-    const url = String(rawUrl || "").trim();
-    if (!url) return null;
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-        return null;
+  function resolvePassFamilyIcon(passItem, passSearchText) {
+    function findFamilyIconByCandidate(candidate) {
+      const normalized = normalizePassFamilyKey(candidate);
+      if (!normalized) return null;
+
+      const exact = PASS_FAMILY_ICON_BY_KEY.get(normalized);
+      if (exact) return exact;
+
+      // Handle variant ids/names like "labrador_song_individual_pass" from API results.
+      for (const [key, icon] of PASS_FAMILY_ICON_BY_KEY.entries()) {
+        if (normalized.startsWith(`${key}_`) || key.startsWith(`${normalized}_`)) {
+          return icon;
+        }
       }
-      const host = parsed.hostname.replace(/^www\./i, "");
-      if (!host) return null;
-      return {
-        key: host,
-        alt: host,
-        src: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=128`,
-      };
-    } catch (_error) {
       return null;
     }
-  }
 
-  function resolvePassFamilyIcon(passItem, passSearchText) {
     const familyCandidates = [
       passItem?.pass_family,
       passItem?.pass_family_name,
@@ -880,10 +881,9 @@
     let familyIcon = null;
     let familyKey = "";
     for (const candidate of familyCandidates) {
-      const normalized = normalizePassFamilyKey(candidate);
-      if (!normalized) continue;
-      const icon = PASS_FAMILY_ICON_BY_KEY.get(normalized);
+      const icon = findFamilyIconByCandidate(candidate);
       if (icon) {
+        const normalized = normalizePassFamilyKey(candidate);
         familyIcon = icon;
         familyKey = icon.key || normalized;
         break;
@@ -919,11 +919,6 @@
       return { key: brandMatch.key, alt: brandMatch.key, src: brandMatch.src };
     }
 
-    const faviconIcon = buildFaviconIconFromUrl(getPassItemUrl(passItem));
-    if (faviconIcon) {
-      return faviconIcon;
-    }
-
     const fallbackFamily = familyCandidates.find((candidate) => String(candidate || "").trim()) || passSearchText;
     return getGeneratedPassFamilyBadge(fallbackFamily);
   }
@@ -936,6 +931,20 @@
     logo.src = icon.src;
     logo.alt = icon.alt || icon.key || "Pass family";
     logo.loading = "lazy";
+    logo.onerror = () => {
+      const fallback = getGeneratedPassFamilyBadge(getPassFamily(passItem) || passSearchText);
+      if (!fallback) {
+        logo.remove();
+        return;
+      }
+      if (logo.src !== fallback.src) {
+        logo.src = fallback.src;
+        logo.alt = fallback.alt || logo.alt;
+        logo.onerror = null;
+      } else {
+        logo.remove();
+      }
+    };
     container.appendChild(logo);
   }
 
