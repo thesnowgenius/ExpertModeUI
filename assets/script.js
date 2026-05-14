@@ -137,6 +137,12 @@
   const MAX_RESORT_INPUT_LENGTH = 120;
   const MAX_RESORT_ID_LENGTH = 80;
   const MAX_RESORT_CATALOG_ROWS = 20000;
+  const MAX_SHARE_STATE_LENGTH = 12000;
+  const SHARE_STATE_PARAM = "sg";
+  const SHARE_AUTO_RUN_PARAM = "run";
+  const SHARE_STATE_VERSION = 1;
+  const TOP_COMPARISON_LIMIT = 3;
+  const VALID_RIDER_CATEGORIES = new Set(["military", "student", "first_responder", "medical"]);
   const API_URL = resolveApiUrl(window.API_URL, DEFAULT_API_URL);
   const isDevMode = (() => {
     if (typeof window.__SNOW_GENIUS_DEV_MODE__ === "boolean") {
@@ -161,6 +167,7 @@
     addRider: document.querySelector("#add-rider"),
     addResort: document.querySelector("#add-resort"),
     clear: document.querySelector("#clear"),
+    share: document.querySelector("#share"),
     submit: document.querySelector("#submit"),
     rawRequest: document.querySelector("#raw-request"),
     rawResponse: document.querySelector("#raw-response"),
@@ -175,6 +182,8 @@
   let resortById = new Map();
   let resortByNormalizedName = new Map();
   let typeaheadCounter = 0;
+  let sharedItineraryHandled = false;
+  let lastSubmittedPayload = null;
 
   function postHeight() {
     const body = document.body;
@@ -405,8 +414,25 @@
     if (!raw || raw === "none") return null;
     if (raw.includes("military") || raw.includes("veteran")) return "military";
     if (raw.includes("student")) return "student";
+    if (
+      raw.includes("first responder") ||
+      raw.includes("responder") ||
+      raw.includes("emt") ||
+      raw.includes("paramedic") ||
+      raw.includes("police") ||
+      raw.includes("firefighter")
+    ) return "first_responder";
     if (raw.includes("nurse") || raw.includes("doctor") || raw.includes("doc") || raw.includes("medical")) return "medical";
     return raw;
+  }
+
+  function formatCategoryLabel(value) {
+    const category = canonicalizeCategory(value);
+    if (category === "military") return "Military";
+    if (category === "student") return "Student";
+    if (category === "first_responder") return "First Responder";
+    if (category === "medical") return "Medical";
+    return cleanShortText(value || "", 40);
   }
 
   function hasPublicAccess(row) {
@@ -480,6 +506,7 @@
         <option value="">None</option>
         <option value="military">Military</option>
         <option value="student">Student</option>
+        <option value="first_responder">First Responder</option>
         <option value="medical">Nurse/Doc</option>
       </select>
       <button type="button" class="btn subtle remove-rider">Remove</button>
@@ -721,6 +748,7 @@
     els.rawResponse.textContent = "{}";
     showError("");
     clearResults();
+    clearShareParamsFromUrl();
     setStatus("Form cleared.");
   }
 
@@ -743,7 +771,7 @@
       }
 
       const category = canonicalizeCategory(categorySelect?.value) || null;
-      if (category && !["military", "student", "medical"].includes(category)) {
+      if (category && !VALID_RIDER_CATEGORIES.has(category)) {
         errors.push(`Rider ${index + 1}: category is invalid.`);
       }
       return {
@@ -823,6 +851,225 @@
       },
       errors,
     };
+  }
+
+  function setRiderCategory(select, value) {
+    if (!select) return;
+    const category = canonicalizeCategory(value);
+    select.value = category && VALID_RIDER_CATEGORIES.has(category) ? category : "";
+  }
+
+  function validIntegerValue(value, min, max) {
+    const number = Number(value);
+    return Number.isInteger(number) && number >= min && number <= max ? String(number) : "";
+  }
+
+  function collectShareState() {
+    const riders = Array.from(els.ridersWrap.querySelectorAll(".rider-row"))
+      .slice(0, MAX_RIDERS)
+      .map((row) => {
+        const age = validIntegerValue(row.querySelector(".rider-age")?.value, 0, MAX_AGE);
+        const category = canonicalizeCategory(row.querySelector(".rider-category")?.value) || "";
+        return {
+          age,
+          category: VALID_RIDER_CATEGORIES.has(category) ? category : "",
+        };
+      })
+      .filter((rider) => rider.age || rider.category);
+
+    const resorts = Array.from(els.resortsWrap.querySelectorAll(".resort-row"))
+      .slice(0, MAX_RESORTS)
+      .map((row) => {
+        const input = row.querySelector(".resort-input");
+        const exact = findExactResortMatch(input?.value || "");
+        const selected = resortById.get(input?.dataset.resortId || "") || exact || null;
+        const label = selected?.label || cleanShortText(input?.value || "", MAX_RESORT_INPUT_LENGTH);
+        const days = validIntegerValue(row.querySelector(".days-input")?.value, 1, MAX_DAYS_PER_RESORT);
+        return {
+          id: selected?.id || cleanShortText(input?.dataset.resortId || "", MAX_RESORT_ID_LENGTH),
+          name: selected?.name || cleanShortText(input?.dataset.resortName || label, MAX_RESORT_INPUT_LENGTH),
+          label,
+          days,
+          no_weekends: Boolean(row.querySelector(".no-weekends")?.checked),
+          no_blackouts: Boolean(row.querySelector(".no-blackouts")?.checked),
+        };
+      })
+      .filter((resort) =>
+        resort.id ||
+        resort.name ||
+        resort.label ||
+        resort.days ||
+        resort.no_weekends ||
+        resort.no_blackouts
+      );
+
+    return {
+      version: SHARE_STATE_VERSION,
+      riders,
+      resorts,
+    };
+  }
+
+  function encodeShareState(state) {
+    const json = JSON.stringify(state);
+    const bytes = new TextEncoder().encode(json);
+    let binary = "";
+    bytes.forEach((byte) => {
+      binary += String.fromCharCode(byte);
+    });
+    return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+  }
+
+  function decodeShareState(value) {
+    const raw = String(value || "");
+    if (!raw || raw.length > MAX_SHARE_STATE_LENGTH) {
+      throw new Error("Shared itinerary is missing or too large.");
+    }
+    const padded = raw.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(raw.length / 4) * 4, "=");
+    const binary = atob(padded);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes));
+  }
+
+  function sharedStateFromUrl() {
+    const params = new URLSearchParams(window.location.search || "");
+    const encoded = params.get(SHARE_STATE_PARAM);
+    if (!encoded) return null;
+    return {
+      state: decodeShareState(encoded),
+      autoRun: params.get(SHARE_AUTO_RUN_PARAM) === "1",
+    };
+  }
+
+  function shareUrl() {
+    const { errors } = buildRequest();
+    if (errors.length) {
+      throw new Error(errors[0]);
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set(SHARE_STATE_PARAM, encodeShareState(collectShareState()));
+    url.searchParams.set(SHARE_AUTO_RUN_PARAM, "1");
+    url.hash = "";
+    return url.toString();
+  }
+
+  function clearShareParamsFromUrl() {
+    try {
+      const url = new URL(window.location.href);
+      const hadShareParams = url.searchParams.has(SHARE_STATE_PARAM) || url.searchParams.has(SHARE_AUTO_RUN_PARAM);
+      if (!hadShareParams || !window.history?.replaceState) return;
+      url.searchParams.delete(SHARE_STATE_PARAM);
+      url.searchParams.delete(SHARE_AUTO_RUN_PARAM);
+      window.history.replaceState({}, "", url.toString());
+    } catch (_error) {
+      // URL state cleanup is best-effort only.
+    }
+  }
+
+  function applyShareState(state) {
+    if (!state || typeof state !== "object") {
+      throw new Error("Shared itinerary format is invalid.");
+    }
+
+    const riders = Array.isArray(state.riders) ? state.riders.slice(0, MAX_RIDERS) : [];
+    const resorts = Array.isArray(state.resorts) ? state.resorts.slice(0, MAX_RESORTS) : [];
+
+    els.ridersWrap.replaceChildren();
+    (riders.length ? riders : [{}]).forEach((rider) => {
+      const row = createRiderRow();
+      row.querySelector(".rider-age").value = validIntegerValue(rider?.age, 0, MAX_AGE);
+      setRiderCategory(row.querySelector(".rider-category"), rider?.category);
+      els.ridersWrap.appendChild(row);
+    });
+
+    els.resortsWrap.replaceChildren();
+    (resorts.length ? resorts : [{}]).forEach((item) => {
+      const row = createResortRow();
+      const input = row.querySelector(".resort-input");
+      const days = row.querySelector(".days-input");
+      const id = cleanShortText(item?.id || "", MAX_RESORT_ID_LENGTH);
+      const resort =
+        resortById.get(id) ||
+        findExactResortMatch(item?.label || "") ||
+        findExactResortMatch(item?.name || "");
+      if (resort) {
+        applySelectedResort(input, resort);
+      } else if (input) {
+        input.value = cleanShortText(item?.label || item?.name || id, MAX_RESORT_INPUT_LENGTH);
+        clearSelectedResort(input);
+      }
+      if (days) {
+        days.value = validIntegerValue(item?.days, 1, MAX_DAYS_PER_RESORT);
+      }
+      const noWeekends = row.querySelector(".no-weekends");
+      const noBlackouts = row.querySelector(".no-blackouts");
+      if (noWeekends) noWeekends.checked = Boolean(item?.no_weekends);
+      if (noBlackouts) noBlackouts.checked = Boolean(item?.no_blackouts);
+      els.resortsWrap.appendChild(row);
+    });
+
+    els.rawRequest.textContent = "{}";
+    els.rawResponse.textContent = "{}";
+    showError("");
+    clearResults();
+    setStatus("Shared itinerary loaded.");
+    queueHeightPost();
+  }
+
+  async function copyShareLink() {
+    showError("");
+    let url;
+    try {
+      url = shareUrl();
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "Unable to build share link.");
+      setStatus("Share link needs a valid itinerary.");
+      return;
+    }
+
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(url);
+    } else {
+      const textarea = document.createElement("textarea");
+      textarea.value = url;
+      textarea.setAttribute("readonly", "");
+      textarea.style.position = "fixed";
+      textarea.style.left = "-9999px";
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand("copy");
+      textarea.remove();
+    }
+    setStatus("Share link copied.");
+  }
+
+  function initializeSharedItinerary() {
+    if (sharedItineraryHandled) return;
+    sharedItineraryHandled = true;
+
+    let shared = null;
+    try {
+      shared = sharedStateFromUrl();
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "Unable to read shared itinerary.");
+      setStatus("Shared itinerary failed to load.");
+      return;
+    }
+
+    if (!shared) return;
+
+    try {
+      applyShareState(shared.state);
+      if (shared.autoRun) {
+        submitRequest().catch((error) => {
+          showError(error instanceof Error ? error.message : "Shared itinerary failed to run.");
+          setStatus("Shared itinerary failed to run.");
+        });
+      }
+    } catch (error) {
+      showError(error instanceof Error ? error.message : "Unable to apply shared itinerary.");
+      setStatus("Shared itinerary failed to load.");
+    }
   }
 
   function getRiderIndex(passItem) {
@@ -1003,7 +1250,7 @@
         const heading = document.createElement("div");
         heading.className = "pass-rider-title";
         const first = riderItems[0] || {};
-        const cat = first.rider_category ? ` (${first.rider_category})` : "";
+        const cat = first.rider_category ? ` (${formatCategoryLabel(first.rider_category)})` : "";
         heading.textContent = `Rider ${riderIndex + 1}${cat}`;
         section.appendChild(heading);
 
@@ -1098,9 +1345,268 @@
     return container;
   }
 
-  function renderResults(data) {
+  function getResultPasses(result) {
+    return Array.isArray(result?.passes) ? result.passes : [];
+  }
+
+  function getResultPrice(result) {
+    return Number(result?.price ?? result?.total_cost ?? 0);
+  }
+
+  function getResultPassCount(result) {
+    const count = Number(result?.pass_count);
+    if (Number.isInteger(count) && count >= 0) return count;
+    return getResultPasses(result).length;
+  }
+
+  function getResultUnmet(result) {
+    return result?.unmet && typeof result.unmet === "object" ? result.unmet : {};
+  }
+
+  function normalizeResultOptions(data) {
+    const legacyResults = Array.isArray(data?.results) ? data.results : [];
+    if (legacyResults.length) {
+      return legacyResults.map((result, index) => ({
+        ...result,
+        __rank: index + 1,
+        __source: "legacy",
+      }));
+    }
+
+    const rankedPasses = Array.isArray(data?.ranked_passes) ? data.ranked_passes : [];
+    return rankedPasses.slice(0, TOP_COMPARISON_LIMIT).map((item, index) => ({
+      strategy: item.rank ? `rank ${item.rank}` : `rank ${index + 1}`,
+      pass_count: 1,
+      price: item.total_cost,
+      passes: [
+        {
+          pass_id: item.pass_id,
+          name: item.pass_name,
+          url: item.url,
+          price: item.total_cost,
+          total_days: item.total_days_covered,
+        },
+      ],
+      unmet: {},
+      explanation: item.explanation,
+      total_score: item.total_score,
+      cost_per_weighted_day: item.cost_per_weighted_day,
+      total_weighted_pass_days: item.total_weighted_pass_days,
+      __rank: item.rank || index + 1,
+      __source: "ranked_passes",
+    }));
+  }
+
+  function resultTitle(result, index, totalCount) {
+    if (result?.__source === "ranked_passes") {
+      return `#${result.__rank || index + 1} Recommendation`;
+    }
+    const strategy = String(result?.strategy || "").trim();
+    if (strategy) {
+      return `${strategy.toUpperCase()} Recommendation`;
+    }
+    return totalCount > 1 ? `Option ${index + 1}` : "Recommendation";
+  }
+
+  function coverageLabel(result) {
+    return Object.keys(getResultUnmet(result)).length ? "Closest coverage" : "Exact coverage";
+  }
+
+  function appendTextList(container, items) {
+    const list = document.createElement("ul");
+    list.className = "why-list";
+    items.forEach((item) => {
+      const li = document.createElement("li");
+      li.textContent = item;
+      list.appendChild(li);
+    });
+    container.appendChild(list);
+  }
+
+  function uniqueReasons(reasons) {
+    const seen = new Set();
+    return reasons
+      .map((reason) => cleanShortText(reason, 240))
+      .filter(Boolean)
+      .filter((reason) => {
+        const key = normalizeText(reason);
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      })
+      .slice(0, 7);
+  }
+
+  function requestedDayCount(payload) {
+    const resorts = Array.isArray(payload?.resorts) ? payload.resorts : [];
+    return resorts.reduce((sum, resort) => sum + (Number(resort.days) || 0), 0);
+  }
+
+  function constrainedResortCount(payload) {
+    const resorts = Array.isArray(payload?.resorts) ? payload.resorts : [];
+    return resorts.filter((resort) => resort.no_weekends || resort.no_blackouts).length;
+  }
+
+  function pricingDetailsForResult(result) {
+    const details = [];
+    getResultPasses(result).forEach((passItem) => {
+      const labels = [];
+      if (passItem.price_variant) labels.push(passItem.price_variant);
+      if (passItem.price_category) labels.push(formatCategoryLabel(passItem.price_category));
+      if (Array.isArray(passItem.price_categories) && passItem.price_categories.length) {
+        const categoryLabels = passItem.price_categories.map(formatCategoryLabel).filter(Boolean);
+        if (categoryLabels.length) labels.push(categoryLabels.join(", "));
+      }
+      if (labels.length) {
+        details.push(`${passItem.name || passItem.pass_id || "Pass"} used ${labels.join(" / ")} pricing.`);
+      }
+    });
+    return details;
+  }
+
+  function buildRecommendationReasons(result, index, allResults, payload) {
+    const reasons = [];
+    const nativeExplanation = result?.explanation || {};
+    const nativeReasons =
+      index === 0 && Array.isArray(nativeExplanation.why_this_pass_won) && nativeExplanation.why_this_pass_won.length
+        ? nativeExplanation.why_this_pass_won
+        : nativeExplanation.why_this_pass_ranked;
+
+    if (nativeExplanation.summary) {
+      reasons.push(nativeExplanation.summary);
+    }
+    if (Array.isArray(nativeReasons)) {
+      reasons.push(...nativeReasons);
+    }
+
+    const requestedDays = requestedDayCount(payload);
+    const riderCount = Array.isArray(payload?.riders) ? payload.riders.length : 0;
+    const passCount = getResultPassCount(result);
+    const strategy = String(result?.strategy || "").trim().toLowerCase();
+    const price = getResultPrice(result);
+    const unmet = getResultUnmet(result);
+    const passNames = getResultPasses(result)
+      .slice(0, 3)
+      .map((passItem) => passItem.name || passItem.pass_id)
+      .filter(Boolean);
+
+    if (!Object.keys(unmet).length) {
+      reasons.push(`Covers ${requestedDays || "the requested"} day(s) across the selected resort plan.`);
+    } else if (unmet.reason) {
+      reasons.push(String(unmet.reason));
+    } else {
+      reasons.push("This is the closest returned option, with some requested days still uncovered.");
+    }
+
+    if (strategy === "single") {
+      reasons.push("A single-pass strategy satisfied the itinerary, keeping the pass count low.");
+    } else if (strategy === "multi") {
+      reasons.push("A multi-pass combination was selected because it covered the itinerary at a lower total cost or broader coverage.");
+    } else if (strategy === "closest") {
+      reasons.push("Exact coverage was not available within the pass-combo limit, so the solver returned the best partial coverage.");
+    }
+
+    if (riderCount) {
+      reasons.push(`Matched pricing for ${riderCount} rider(s).`);
+    }
+    if (passCount) {
+      reasons.push(`Uses ${passCount} pass(es) for ${toCurrency(price)} total.`);
+    }
+    if (constrainedResortCount(payload)) {
+      reasons.push("Applied weekday and blackout constraints on the resort rows that requested them.");
+    }
+    if (passNames.length) {
+      reasons.push(`Main pass choice: ${passNames.join(", ")}.`);
+    }
+    reasons.push(...pricingDetailsForResult(result));
+
+    if (index > 0 && allResults[0]) {
+      const delta = getResultPrice(result) - getResultPrice(allResults[0]);
+      if (delta > 0) {
+        reasons.push(`${toCurrency(delta)} more than the top returned option.`);
+      } else if (delta < 0) {
+        reasons.push(`${toCurrency(Math.abs(delta))} less than the first returned option, with different coverage or ranking tradeoffs.`);
+      }
+    }
+
+    return uniqueReasons(reasons);
+  }
+
+  function renderRecommendationExplanation(result, index, allResults, payload) {
+    const reasons = buildRecommendationReasons(result, index, allResults, payload);
+    if (!reasons.length) return null;
+
+    const details = document.createElement("details");
+    details.className = "why-pass";
+    details.open = index === 0;
+
+    const summary = document.createElement("summary");
+    summary.textContent = "Why this pass?";
+    details.appendChild(summary);
+    appendTextList(details, reasons);
+    return details;
+  }
+
+  function renderComparison(results) {
+    if (!results.length) return null;
+
+    const panel = document.createElement("section");
+    panel.className = "comparison-panel";
+
+    const heading = document.createElement("div");
+    heading.className = "comparison-head";
+    const title = document.createElement("h3");
+    title.textContent = "Compare Options";
+    const note = document.createElement("p");
+    const visibleCount = Math.min(results.length, TOP_COMPARISON_LIMIT);
+    note.textContent = visibleCount > 1 ? `Top ${visibleCount} returned options` : "Top returned option";
+    heading.appendChild(title);
+    heading.appendChild(note);
+    panel.appendChild(heading);
+
+    const grid = document.createElement("div");
+    grid.className = "comparison-grid";
+    results.slice(0, TOP_COMPARISON_LIMIT).forEach((result, index) => {
+      const card = document.createElement("article");
+      card.className = "comparison-card";
+      if (index === 0) {
+        card.classList.add("best");
+      }
+
+      const label = document.createElement("div");
+      label.className = "comparison-label";
+      label.textContent = index === 0 ? "Top returned" : `Option ${index + 1}`;
+
+      const price = document.createElement("strong");
+      price.className = "comparison-price";
+      price.textContent = toCurrency(getResultPrice(result));
+
+      const meta = document.createElement("div");
+      meta.className = "comparison-meta";
+      const strategy = String(result.strategy || "recommendation");
+      meta.textContent = `${getResultPassCount(result)} pass(es) • ${strategy} • ${coverageLabel(result)}`;
+
+      const passNames = document.createElement("div");
+      passNames.className = "comparison-passes";
+      passNames.textContent = getResultPasses(result)
+        .slice(0, 3)
+        .map((passItem) => passItem.name || passItem.pass_id || "Pass")
+        .join(", ") || "No pass details";
+
+      card.appendChild(label);
+      card.appendChild(price);
+      card.appendChild(meta);
+      card.appendChild(passNames);
+      grid.appendChild(card);
+    });
+    panel.appendChild(grid);
+    return panel;
+  }
+
+  function renderResults(data, payload = lastSubmittedPayload) {
     clearResults();
-    if (!data || !Array.isArray(data.results) || !data.results.length) {
+    const resultOptions = normalizeResultOptions(data);
+    if (!data || !resultOptions.length) {
       const empty = document.createElement("div");
       empty.className = "result-card";
       empty.textContent = "No results returned.";
@@ -1109,7 +1615,12 @@
       return;
     }
 
-    data.results.forEach((result, index) => {
+    const comparison = renderComparison(resultOptions);
+    if (comparison) {
+      els.results.appendChild(comparison);
+    }
+
+    resultOptions.forEach((result, index) => {
       const card = document.createElement("section");
       card.className = "result-card";
 
@@ -1118,22 +1629,20 @@
 
       const title = document.createElement("h3");
       title.className = "result-title";
-      title.textContent = isDevMode
-        ? `${String(result.strategy || "result").toUpperCase()} Recommendation`
-        : "";
+      title.textContent = resultTitle(result, index, resultOptions.length);
 
       const price = document.createElement("div");
       price.className = "result-price";
-      price.textContent = toCurrency(result.price || 0);
+      price.textContent = toCurrency(getResultPrice(result));
 
-      if (isDevMode) {
+      if (isDevMode || resultOptions.length > 1 || result.__source === "ranked_passes") {
         head.appendChild(title);
       }
       head.appendChild(price);
 
       const summary = document.createElement("div");
       summary.className = "result-summary";
-      const summaryParts = [`${result.pass_count || 0} pass(es)`];
+      const summaryParts = [`${getResultPassCount(result)} pass(es)`, coverageLabel(result)];
       if (isDevMode && result.strategy) {
         summaryParts.push(`Strategy: ${String(result.strategy)}`);
       }
@@ -1141,9 +1650,14 @@
 
       card.appendChild(head);
       card.appendChild(summary);
-      card.appendChild(renderPassList(result.passes || []));
+      card.appendChild(renderPassList(getResultPasses(result)));
 
-      const unmet = renderUnmet(result.unmet || {});
+      const explanation = renderRecommendationExplanation(result, index, resultOptions, payload);
+      if (explanation) {
+        card.appendChild(explanation);
+      }
+
+      const unmet = renderUnmet(getResultUnmet(result));
       if (unmet) {
         card.appendChild(unmet);
       }
@@ -1159,6 +1673,7 @@
     setStatus("");
 
     const { payload, errors } = buildRequest();
+    lastSubmittedPayload = payload;
     els.rawRequest.textContent = JSON.stringify(payload, null, 2);
 
     if (errors.length) {
@@ -1202,7 +1717,7 @@
         throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
       }
 
-      renderResults(data);
+      renderResults(data, payload);
       setStatus("Results updated.");
       scrollToResults();
     } catch (error) {
@@ -1251,13 +1766,19 @@
     });
 
     els.clear?.addEventListener("click", resetForm);
+    els.share?.addEventListener("click", () => {
+      copyShareLink().catch((error) => {
+        showError(error instanceof Error ? error.message : "Unable to copy share link.");
+        setStatus("Share link failed.");
+      });
+    });
     els.submit?.addEventListener("click", submitRequest);
   }
 
   initializeExistingRows();
   initializeModeUi();
   bindEvents();
-  loadResorts();
+  loadResorts().then(() => initializeSharedItinerary());
 
   window.addEventListener("load", postHeight);
   window.addEventListener("resize", queueHeightPost);

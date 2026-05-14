@@ -546,6 +546,84 @@ body{
   font-size:13px;
 }
 
+.comparison-panel{
+  margin-bottom:12px;
+  padding:14px;
+  border-radius:18px;
+  border:1px solid rgba(23,52,89,.09);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.92), rgba(248,252,255,.84));
+  box-shadow:0 8px 18px rgba(15,23,42,.045);
+}
+
+.comparison-head{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+}
+
+.comparison-head h3{
+  margin:0;
+  font-size:16px;
+  letter-spacing:-0.01em;
+}
+
+.comparison-head p{
+  margin:0;
+  color:var(--muted);
+  font-size:13px;
+}
+
+.comparison-grid{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:10px;
+}
+
+.comparison-card{
+  display:grid;
+  gap:7px;
+  min-width:0;
+  padding:12px;
+  border-radius:14px;
+  border:1px solid rgba(23,52,89,.08);
+  background:rgba(255,255,255,.76);
+}
+
+.comparison-card.best{
+  border-color:rgba(10,132,255,.22);
+  box-shadow:inset 0 0 0 1px rgba(10,132,255,.08);
+}
+
+.comparison-label{
+  color:#4e657b;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
+.comparison-price{
+  color:#0f3e7a;
+  font-size:22px;
+  line-height:1;
+}
+
+.comparison-meta,
+.comparison-passes{
+  min-width:0;
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.35;
+  overflow-wrap:anywhere;
+}
+
+.comparison-passes{
+  color:#2f455a;
+}
+
 .pass-list{
   display:grid;
   gap:8px;
@@ -655,6 +733,49 @@ body{
 .unmet-list{
   margin:6px 0 0 18px;
   padding:0;
+}
+
+.why-pass{
+  margin-top:12px;
+  border-top:1px solid rgba(23,52,89,.06);
+  padding-top:10px;
+}
+
+.why-pass summary{
+  cursor:pointer;
+  color:#123f70;
+  font-weight:700;
+  list-style:none;
+}
+
+.why-pass summary::-webkit-details-marker{
+  display:none;
+}
+
+.why-pass summary::after{
+  content:"";
+  display:inline-block;
+  width:7px;
+  height:7px;
+  margin-left:8px;
+  border-right:2px solid currentColor;
+  border-bottom:2px solid currentColor;
+  transform:rotate(45deg) translateY(-2px);
+}
+
+.why-pass[open] summary::after{
+  transform:rotate(225deg) translateY(-1px);
+}
+
+.why-list{
+  margin:8px 0 0 18px;
+  padding:0;
+  color:#344b61;
+  font-size:14px;
+}
+
+.why-list li{
+  margin:4px 0;
 }
 
 .muted{
@@ -792,6 +913,14 @@ body{
   .result-head{
     align-items:flex-start;
     flex-direction:column;
+  }
+  .comparison-grid{
+    grid-template-columns:1fr;
+  }
+  .comparison-head{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:4px;
   }
 }
 
