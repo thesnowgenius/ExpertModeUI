@@ -960,9 +960,10 @@
     const params = new URLSearchParams(window.location.search || "");
     const encoded = params.get(SHARE_STATE_PARAM);
     if (!encoded) return null;
+    const runMode = String(params.get(SHARE_AUTO_RUN_PARAM) || "").toLowerCase();
     return {
       state: decodeShareState(encoded),
-      autoRun: params.get(SHARE_AUTO_RUN_PARAM) === "1",
+      autoRun: runMode !== "0" && runMode !== "false",
     };
   }
 
@@ -973,7 +974,7 @@
     }
     const url = new URL(window.location.href);
     url.searchParams.set(SHARE_STATE_PARAM, encodeShareState(collectShareState()));
-    url.searchParams.delete(SHARE_AUTO_RUN_PARAM);
+    url.searchParams.set(SHARE_AUTO_RUN_PARAM, "1");
     url.hash = "";
     return url.toString();
   }
