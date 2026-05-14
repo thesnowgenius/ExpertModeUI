@@ -1027,20 +1027,76 @@
       return;
     }
 
+    let copied = false;
     if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(url);
-    } else {
-      const textarea = document.createElement("textarea");
-      textarea.value = url;
-      textarea.setAttribute("readonly", "");
-      textarea.style.position = "fixed";
-      textarea.style.left = "-9999px";
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand("copy");
+      try {
+        await navigator.clipboard.writeText(url);
+        copied = true;
+      } catch (_error) {
+        copied = false;
+      }
+    }
+
+    if (!copied) {
+      copied = copyTextWithSelection(url);
+    }
+
+    if (!copied) {
+      showShareLinkFallback(url);
+      setStatus("Share link ready. Select and copy it from the field.");
+      return;
+    }
+
+    setStatus("Share link copied.");
+  }
+
+  function copyTextWithSelection(text) {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    let copied = false;
+    try {
+      copied = document.execCommand("copy");
+    } catch (_error) {
+      copied = false;
+    } finally {
       textarea.remove();
     }
-    setStatus("Share link copied.");
+
+    return copied;
+  }
+
+  function showShareLinkFallback(url) {
+    if (!els.formError) return;
+    els.formError.hidden = false;
+    els.formError.replaceChildren();
+
+    const message = document.createElement("div");
+    message.textContent = "Copy blocked by this page's permissions policy. Select the link below to copy it manually.";
+
+    const input = document.createElement("input");
+    input.className = "input share-link-fallback";
+    input.type = "text";
+    input.value = url;
+    input.setAttribute("readonly", "");
+    input.setAttribute("aria-label", "Share link");
+    input.addEventListener("focus", () => input.select());
+    input.addEventListener("click", () => input.select());
+
+    els.formError.appendChild(message);
+    els.formError.appendChild(input);
+    window.requestAnimationFrame(() => {
+      input.focus();
+      input.select();
+      queueHeightPost();
+    });
   }
 
   function initializeSharedItinerary() {

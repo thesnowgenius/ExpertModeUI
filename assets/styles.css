@@ -498,6 +498,11 @@ body{
   color:var(--danger);
 }
 
+.share-link-fallback{
+  margin-top:8px;
+  color:var(--ink);
+}
+
 .visually-hidden{
   position:absolute!important;
   height:1px;
