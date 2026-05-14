@@ -141,6 +141,7 @@
   const SHARE_STATE_PARAM = "sg";
   const SHARE_AUTO_RUN_PARAM = "run";
   const SHARE_STATE_VERSION = 1;
+  const SHARE_COPY_FEEDBACK_MS = 2200;
   const TOP_COMPARISON_LIMIT = 3;
   const VALID_RIDER_CATEGORIES = new Set(["military", "student", "first_responder", "medical"]);
   const API_URL = resolveApiUrl(window.API_URL, DEFAULT_API_URL);
@@ -185,6 +186,7 @@
   let typeaheadCounter = 0;
   let sharedItineraryHandled = false;
   let lastSubmittedPayload = null;
+  let shareFeedbackTimeoutId = 0;
 
   function postHeight() {
     const body = document.body;
@@ -404,6 +406,27 @@
     els.formNotice.hidden = false;
     els.formNotice.textContent = message;
     queueHeightPost();
+  }
+
+  function resetShareButtonFeedback() {
+    if (shareFeedbackTimeoutId) {
+      window.clearTimeout(shareFeedbackTimeoutId);
+      shareFeedbackTimeoutId = 0;
+    }
+    if (!els.share) return;
+    els.share.classList.remove("copy-confirmed");
+    els.share.textContent = "Share Link";
+  }
+
+  function showShareCopiedFeedback() {
+    showNotice("Share link copied to clipboard.");
+    setStatus("Share link copied.");
+    if (!els.share) return;
+    els.share.classList.add("copy-confirmed");
+    els.share.textContent = "Copied!";
+    shareFeedbackTimeoutId = window.setTimeout(() => {
+      resetShareButtonFeedback();
+    }, SHARE_COPY_FEEDBACK_MS);
   }
 
   function initializeModeUi() {
@@ -764,6 +787,7 @@
   }
 
   function resetForm() {
+    resetShareButtonFeedback();
     els.ridersWrap.replaceChildren();
     els.resortsWrap.replaceChildren();
     els.ridersWrap.appendChild(createRiderRow());
@@ -1049,6 +1073,7 @@
   }
 
   async function copyShareLink() {
+    resetShareButtonFeedback();
     showNotice("");
     showError("");
     let url;
@@ -1080,7 +1105,7 @@
       return;
     }
 
-    setStatus("Share link copied.");
+    showShareCopiedFeedback();
   }
 
   function copyTextWithSelection(text) {
