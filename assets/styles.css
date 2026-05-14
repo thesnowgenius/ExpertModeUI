@@ -489,6 +489,15 @@ body{
   transform:translateY(0);
 }
 
+.notice-banner{
+  margin:10px 0;
+  padding:10px 12px;
+  border:1px solid rgba(10,132,255,.22);
+  border-radius:14px;
+  background:rgba(10,132,255,.08);
+  color:var(--ink);
+}
+
 .error-banner{
   margin:10px 0;
   padding:10px 12px;
