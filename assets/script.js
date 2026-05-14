@@ -172,6 +172,7 @@
     rawRequest: document.querySelector("#raw-request"),
     rawResponse: document.querySelector("#raw-response"),
     results: document.querySelector("#results"),
+    formNotice: document.querySelector("#form-notice"),
     formError: document.querySelector("#form-error"),
     formStatus: document.querySelector("#form-status"),
   };
@@ -222,6 +223,16 @@
     if (!els.results) return;
     const reduceMotion = Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
     const targetTop = Math.max(0, window.scrollY + els.results.getBoundingClientRect().top - 18);
+    window.scrollTo({
+      top: targetTop,
+      behavior: reduceMotion ? "auto" : "smooth",
+    });
+  }
+
+  function scrollToPlanner() {
+    if (!els.appMain) return;
+    const reduceMotion = Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+    const targetTop = Math.max(0, window.scrollY + els.appMain.getBoundingClientRect().top - 18);
     window.scrollTo({
       top: targetTop,
       behavior: reduceMotion ? "auto" : "smooth",
@@ -379,6 +390,19 @@
     }
     els.formError.hidden = false;
     els.formError.textContent = message;
+    queueHeightPost();
+  }
+
+  function showNotice(message) {
+    if (!els.formNotice) return;
+    if (!message) {
+      els.formNotice.hidden = true;
+      els.formNotice.textContent = "";
+      queueHeightPost();
+      return;
+    }
+    els.formNotice.hidden = false;
+    els.formNotice.textContent = message;
     queueHeightPost();
   }
 
@@ -746,6 +770,7 @@
     els.resortsWrap.appendChild(createResortRow());
     els.rawRequest.textContent = "{}";
     els.rawResponse.textContent = "{}";
+    showNotice("");
     showError("");
     clearResults();
     clearShareParamsFromUrl();
@@ -948,7 +973,7 @@
     }
     const url = new URL(window.location.href);
     url.searchParams.set(SHARE_STATE_PARAM, encodeShareState(collectShareState()));
-    url.searchParams.set(SHARE_AUTO_RUN_PARAM, "1");
+    url.searchParams.delete(SHARE_AUTO_RUN_PARAM);
     url.hash = "";
     return url.toString();
   }
@@ -966,10 +991,11 @@
     }
   }
 
-  function applyShareState(state) {
+  function applyShareState(state, options = {}) {
     if (!state || typeof state !== "object") {
       throw new Error("Shared itinerary format is invalid.");
     }
+    const shouldAutoRun = Boolean(options.autoRun);
 
     const riders = Array.isArray(state.riders) ? state.riders.slice(0, MAX_RIDERS) : [];
     const resorts = Array.isArray(state.resorts) ? state.resorts.slice(0, MAX_RESORTS) : [];
@@ -1011,12 +1037,18 @@
     els.rawRequest.textContent = "{}";
     els.rawResponse.textContent = "{}";
     showError("");
+    showNotice(
+      shouldAutoRun
+        ? "Shared itinerary loaded. Running recommendations now..."
+        : "Shared itinerary loaded. Review the trip and press Submit to see recommendations."
+    );
     clearResults();
     setStatus("Shared itinerary loaded.");
     queueHeightPost();
   }
 
   async function copyShareLink() {
+    showNotice("");
     showError("");
     let url;
     try {
@@ -1115,9 +1147,10 @@
     if (!shared) return;
 
     try {
-      applyShareState(shared.state);
+      applyShareState(shared.state, { autoRun: shared.autoRun });
+      window.requestAnimationFrame(scrollToPlanner);
       if (shared.autoRun) {
-        submitRequest().catch((error) => {
+        submitRequest({ fromSharedLink: true }).catch((error) => {
           showError(error instanceof Error ? error.message : "Shared itinerary failed to run.");
           setStatus("Shared itinerary failed to run.");
         });
@@ -1724,8 +1757,12 @@
     revealResults();
   }
 
-  async function submitRequest() {
+  async function submitRequest(options = {}) {
+    const fromSharedLink = Boolean(options.fromSharedLink);
     showError("");
+    if (!fromSharedLink) {
+      showNotice("");
+    }
     setStatus("");
 
     const { payload, errors } = buildRequest();
@@ -1736,6 +1773,10 @@
       showError(errors[0]);
       clearResults();
       setStatus("Validation failed.");
+      if (fromSharedLink) {
+        showNotice("Shared itinerary loaded, but it needs a valid trip before recommendations can run.");
+        scrollToPlanner();
+      }
       return;
     }
 
@@ -1774,6 +1815,7 @@
       }
 
       renderResults(data, payload);
+      showNotice("");
       setStatus("Results updated.");
       scrollToResults();
     } catch (error) {
@@ -1788,7 +1830,11 @@
         els.rawResponse.textContent = JSON.stringify({ error: message }, null, 2);
       }
       clearResults();
-      setStatus("Request failed.");
+      if (fromSharedLink) {
+        showNotice("Shared itinerary loaded, but recommendations could not run automatically. Press Submit to try again.");
+        scrollToPlanner();
+      }
+      setStatus(fromSharedLink ? "Shared itinerary loaded. Automatic recommendations failed." : "Request failed.");
     } finally {
       if (timeoutId !== null) {
         window.clearTimeout(timeoutId);
@@ -1807,6 +1853,7 @@
         return;
       }
       showError("");
+      showNotice("");
       els.ridersWrap.appendChild(createRiderRow());
     });
 
@@ -1818,6 +1865,7 @@
         return;
       }
       showError("");
+      showNotice("");
       els.resortsWrap.appendChild(createResortRow());
     });
 
@@ -1828,7 +1876,7 @@
         setStatus("Share link failed.");
       });
     });
-    els.submit?.addEventListener("click", submitRequest);
+    els.submit?.addEventListener("click", () => submitRequest());
   }
 
   initializeExistingRows();
