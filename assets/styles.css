@@ -431,11 +431,28 @@ body{
 
 .resort-submit-row{
   display:flex;
+  align-items:center;
   justify-content:flex-end;
   gap:10px;
   margin-top:12px;
   padding-top:10px;
   border-top:1px solid rgba(23,52,89,.06);
+}
+
+.mode-picker{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-right:auto;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:600;
+}
+
+.mode-picker .select{
+  flex:0 0 168px;
+  padding-top:9px;
+  padding-bottom:9px;
 }
 
 .footer{
@@ -878,6 +895,28 @@ body{
 
 .dev-debug[open] summary::after{transform:rotate(225deg)}
 
+.dev-api-panel{
+  padding:12px;
+}
+
+.dev-api-panel h3{
+  margin:0 0 10px;
+  font-size:16px;
+  letter-spacing:0;
+}
+
+.dev-api-controls{
+  display:grid;
+  grid-template-columns:minmax(120px, .45fr) minmax(220px, 1fr) auto auto;
+  gap:8px;
+  align-items:center;
+}
+
+.dev-api-status{
+  margin:10px 0 0;
+  white-space:pre-wrap;
+}
+
 .dev-debug pre{
   margin:0;
   padding:12px;
@@ -924,7 +963,15 @@ body{
   .input, .select{flex:1 1 100%}
   .chk{white-space:normal}
   .resort-submit-row{
+    flex-wrap:wrap;
     justify-content:stretch;
+  }
+  .mode-picker{
+    flex:1 1 100%;
+    margin-right:0;
+  }
+  .mode-picker .select{
+    flex:1 1 auto;
   }
   .resort-submit-row .btn{
     flex:1 1 auto;
@@ -945,6 +992,9 @@ body{
     align-items:flex-start;
     flex-direction:column;
     gap:4px;
+  }
+  .dev-api-controls{
+    grid-template-columns:1fr;
   }
 }
 

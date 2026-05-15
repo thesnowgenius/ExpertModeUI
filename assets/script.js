@@ -130,6 +130,7 @@
   const TYPEAHEAD_DEBOUNCE_MS = 90;
   const MAX_SUGGESTIONS = 100;
   const REQUEST_TIMEOUT_MS = 20000;
+  const DEV_API_STORAGE_KEY = "snowGeniusExpertApiUrl";
   const MAX_RIDERS = 12;
   const MAX_RESORTS = 20;
   const MAX_AGE = 120;
@@ -144,8 +145,8 @@
   const SHARE_STATE_VERSION = 1;
   const SHARE_COPY_FEEDBACK_MS = 2200;
   const TOP_COMPARISON_LIMIT = 3;
-  const VALID_RIDER_CATEGORIES = new Set(["military", "student", "first_responder", "medical"]);
-  const API_URL = resolveApiUrl(window.API_URL, DEFAULT_API_URL);
+  const VALID_RECOMMENDATION_MODES = new Set(["auto", "single", "multi", "closest"]);
+  const VALID_RIDER_CATEGORIES = new Set(["military", "student", "first_responder", "medical", "uphill"]);
   const isDevMode = (() => {
     if (typeof window.__SNOW_GENIUS_DEV_MODE__ === "boolean") {
       return window.__SNOW_GENIUS_DEV_MODE__;
@@ -158,11 +159,14 @@
       /(?:^|[?&=])devmode(?:[=&]|$)/i.test(window.location.search || "")
     );
   })();
+  const DEFAULT_RESOLVED_API_URL = resolveApiUrl(window.API_URL, DEFAULT_API_URL);
+  let currentApiUrl = loadStoredApiUrl(DEFAULT_RESOLVED_API_URL);
 
   const els = {
     hero: document.querySelector(".hero"),
     appMain: document.querySelector("#app-main"),
     devShell: document.querySelector("#dev-shell"),
+    devShellCard: document.querySelector(".dev-shell-card"),
     footer: document.querySelector(".footer"),
     ridersWrap: document.querySelector("#riders"),
     resortsWrap: document.querySelector("#resorts"),
@@ -171,6 +175,7 @@
     clear: document.querySelector("#clear"),
     share: document.querySelector("#share"),
     submit: document.querySelector("#submit"),
+    recommendationMode: document.querySelector("#recommendation-mode"),
     rawRequest: document.querySelector("#raw-request"),
     rawResponse: document.querySelector("#raw-response"),
     results: document.querySelector("#results"),
@@ -289,6 +294,32 @@
       console.warn(`Ignoring unsafe API_URL override (${message})`);
       return fallbackUrl.toString();
     }
+  }
+
+  function loadStoredApiUrl(fallback) {
+    if (!isDevMode) return fallback;
+    try {
+      const saved = window.localStorage?.getItem(DEV_API_STORAGE_KEY) || "";
+      return resolveApiUrl(saved, fallback);
+    } catch (_error) {
+      return fallback;
+    }
+  }
+
+  function storeApiUrl(url) {
+    try {
+      window.localStorage?.setItem(DEV_API_STORAGE_KEY, url);
+    } catch (_error) {
+      // Local storage can be blocked in embedded contexts; endpoint still works for this page load.
+    }
+  }
+
+  function apiSiblingUrl(path) {
+    const url = new URL(currentApiUrl, window.location.href);
+    url.pathname = path;
+    url.search = "";
+    url.hash = "";
+    return url.toString();
   }
 
   function stripControlChars(value) {
@@ -436,7 +467,131 @@
     if (els.appMain) els.appMain.hidden = false;
     if (els.footer) els.footer.hidden = false;
     if (els.devShell) els.devShell.hidden = !isDevMode;
+    initializeDevApiPanel();
     queueHeightPost();
+  }
+
+  function setCatalogStatus(panel, data) {
+    const output = panel.querySelector(".dev-api-status");
+    if (!output) return;
+    if (!data) {
+      output.textContent = "Catalog status has not been loaded.";
+      return;
+    }
+    const counts = data.counts || {};
+    const pricing = data.pricing || {};
+    output.textContent = [
+      `Status: ${data.status || "unknown"}`,
+      `Loaded: ${data.loaded_at || "unknown"}`,
+      `Pricing source: ${pricing.pricing_source || "unknown"}`,
+      `Season: ${pricing.season || "default"}`,
+      `JSON pricing updated: ${pricing.json_pricing_updated_at || "unknown"}`,
+      `Variants: ${counts.variants ?? "unknown"}`,
+      `Pricing rows: ${counts.pricing_rows ?? "unknown"}`,
+      `Unavailable/unpriced passes: ${counts.unavailable_or_unpriced_passes ?? "unknown"}`,
+    ].join("\n");
+  }
+
+  async function refreshCatalogStatus(panel) {
+    const output = panel.querySelector(".dev-api-status");
+    if (output) output.textContent = "Loading catalog status...";
+    try {
+      const response = await fetch(apiSiblingUrl("/catalog_status"), {
+        method: "GET",
+        mode: "cors",
+        credentials: "omit",
+        redirect: "error",
+        referrerPolicy: "no-referrer",
+        cache: "no-store",
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.detail || `Catalog status failed (${response.status})`);
+      }
+      setCatalogStatus(panel, data);
+    } catch (error) {
+      if (output) {
+        output.textContent = error instanceof Error ? error.message : "Catalog status failed.";
+      }
+    } finally {
+      queueHeightPost();
+    }
+  }
+
+  function initializeDevApiPanel() {
+    if (!isDevMode || !els.devShellCard || els.devShellCard.querySelector(".dev-api-panel")) return;
+
+    const panel = document.createElement("section");
+    panel.className = "dev-api-panel dev-debug";
+
+    const title = document.createElement("h3");
+    title.textContent = "API Endpoint";
+
+    const controls = document.createElement("div");
+    controls.className = "dev-api-controls";
+
+    const select = document.createElement("select");
+    select.className = "select dev-api-preset";
+    select.setAttribute("aria-label", "API endpoint preset");
+    [
+      ["render", DEFAULT_RESOLVED_API_URL, "Render"],
+      ["local", "http://127.0.0.1:8000/score_pass", "Local"],
+      ["custom", currentApiUrl, "Custom"],
+    ].forEach(([value, url, label]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.dataset.url = url;
+      option.textContent = label;
+      select.appendChild(option);
+    });
+
+    const input = document.createElement("input");
+    input.className = "input dev-api-url";
+    input.type = "url";
+    input.value = currentApiUrl;
+    input.setAttribute("aria-label", "API endpoint URL");
+
+    const apply = document.createElement("button");
+    apply.className = "btn subtle";
+    apply.type = "button";
+    apply.textContent = "Use Endpoint";
+
+    const refresh = document.createElement("button");
+    refresh.className = "btn subtle";
+    refresh.type = "button";
+    refresh.textContent = "Refresh Status";
+
+    const status = document.createElement("pre");
+    status.className = "dev-api-status";
+    status.textContent = "Catalog status has not been loaded.";
+
+    function syncInputFromPreset() {
+      const selected = select.selectedOptions[0];
+      if (selected?.dataset.url) {
+        input.value = selected.dataset.url;
+      }
+    }
+
+    select.addEventListener("change", syncInputFromPreset);
+    apply.addEventListener("click", () => {
+      const nextUrl = resolveApiUrl(input.value, DEFAULT_RESOLVED_API_URL);
+      currentApiUrl = nextUrl;
+      input.value = nextUrl;
+      storeApiUrl(nextUrl);
+      setStatus("Developer API endpoint updated.");
+      refreshCatalogStatus(panel);
+    });
+    refresh.addEventListener("click", () => refreshCatalogStatus(panel));
+
+    controls.appendChild(select);
+    controls.appendChild(input);
+    controls.appendChild(apply);
+    controls.appendChild(refresh);
+    panel.appendChild(title);
+    panel.appendChild(controls);
+    panel.appendChild(status);
+    els.devShellCard.insertBefore(panel, els.devShellCard.firstChild);
+    refreshCatalogStatus(panel);
   }
 
   function clearResults() {
@@ -461,6 +616,7 @@
     const raw = normalizeText(value);
     if (!raw || raw === "none") return null;
     if (raw.includes("military") || raw.includes("veteran")) return "military";
+    if (raw.includes("uphill") || raw.includes("skinning")) return "uphill";
     if (raw.includes("student")) return "student";
     if (
       raw.includes("first responder") ||
@@ -480,6 +636,7 @@
     if (category === "student") return "Student";
     if (category === "first_responder") return "First Responder";
     if (category === "medical") return "Medical";
+    if (category === "uphill") return "Uphill/Skinning";
     return cleanShortText(value || "", 40);
   }
 
@@ -556,6 +713,7 @@
         <option value="student">Student</option>
         <option value="first_responder">First Responder</option>
         <option value="medical">Nurse/Doc</option>
+        <option value="uphill">Uphill/Skinning</option>
       </select>
       <button type="button" class="btn subtle remove-rider">Remove</button>
     `;
@@ -808,6 +966,9 @@
     els.resortsWrap.replaceChildren();
     els.ridersWrap.appendChild(createRiderRow());
     els.resortsWrap.appendChild(createResortRow());
+    if (els.recommendationMode) {
+      els.recommendationMode.value = "auto";
+    }
     els.rawRequest.textContent = "{}";
     els.rawResponse.textContent = "{}";
     showNotice("");
@@ -815,6 +976,11 @@
     clearResults();
     clearShareParamsFromUrl();
     setStatus("Form cleared.");
+  }
+
+  function getRecommendationMode() {
+    const mode = String(els.recommendationMode?.value || "auto").trim().toLowerCase();
+    return VALID_RECOMMENDATION_MODES.has(mode) ? mode : "auto";
   }
 
   function buildRequest() {
@@ -912,7 +1078,7 @@
       payload: {
         riders,
         resorts,
-        mode: "auto",
+        mode: getRecommendationMode(),
       },
       errors,
     };
@@ -970,6 +1136,7 @@
 
     return {
       version: SHARE_STATE_VERSION,
+      mode: getRecommendationMode(),
       riders,
       resorts,
     };
@@ -1040,6 +1207,10 @@
 
     const riders = Array.isArray(state.riders) ? state.riders.slice(0, MAX_RIDERS) : [];
     const resorts = Array.isArray(state.resorts) ? state.resorts.slice(0, MAX_RESORTS) : [];
+    const mode = String(state.mode || "auto").trim().toLowerCase();
+    if (els.recommendationMode) {
+      els.recommendationMode.value = VALID_RECOMMENDATION_MODES.has(mode) ? mode : "auto";
+    }
 
     els.ridersWrap.replaceChildren();
     (riders.length ? riders : [{}]).forEach((rider) => {
@@ -1494,6 +1665,14 @@
     return result?.unmet && typeof result.unmet === "object" ? result.unmet : {};
   }
 
+  function getResultCoverage(result) {
+    return Array.isArray(result?.coverage) ? result.coverage : [];
+  }
+
+  function getResultUnmetByRider(result) {
+    return Array.isArray(result?.unmet_by_rider) ? result.unmet_by_rider : [];
+  }
+
   function normalizeResultOptions(data) {
     const legacyResults = Array.isArray(data?.results) ? data.results : [];
     if (legacyResults.length) {
@@ -1529,6 +1708,10 @@
   }
 
   function resultTitle(result, index, totalCount) {
+    const alternativeLabel = cleanShortText(result?.alternative_label || "", 80);
+    if (alternativeLabel) {
+      return alternativeLabel;
+    }
     if (result?.__source === "ranked_passes") {
       return `#${result.__rank || index + 1} Recommendation`;
     }
@@ -1678,6 +1861,37 @@
     return details;
   }
 
+  function renderCoverageDetails(result) {
+    const coverage = getResultCoverage(result);
+    const unmetByRider = getResultUnmetByRider(result);
+    if (!coverage.length && !unmetByRider.length) return null;
+
+    const details = document.createElement("details");
+    details.className = "why-pass coverage-details";
+    details.open = Boolean(unmetByRider.length);
+
+    const summary = document.createElement("summary");
+    summary.textContent = unmetByRider.length ? "Coverage gaps" : "Coverage details";
+    details.appendChild(summary);
+
+    const list = document.createElement("ul");
+    list.className = "why-list";
+    coverage
+      .filter((row) => Number(row?.requested_days) > 0)
+      .slice(0, 80)
+      .forEach((row) => {
+        const li = document.createElement("li");
+        const riderLabel = Number.isInteger(Number(row.rider_index)) ? `Rider ${Number(row.rider_index) + 1}` : "Rider";
+        const requested = Number(row.requested_days) || 0;
+        const covered = Number(row.covered_days) || 0;
+        const uncovered = Math.max(0, Number(row.uncovered_days) || requested - covered);
+        li.textContent = `${riderLabel} at ${row.resort_id || "resort"}: ${covered}/${requested} day(s) covered${uncovered ? `, ${uncovered} uncovered` : ""}.`;
+        list.appendChild(li);
+      });
+    details.appendChild(list);
+    return details;
+  }
+
   function renderComparison(results) {
     if (!results.length) return null;
 
@@ -1715,7 +1929,8 @@
       const meta = document.createElement("div");
       meta.className = "comparison-meta";
       const strategy = String(result.strategy || "recommendation");
-      meta.textContent = `${getResultPassCount(result)} pass(es) • ${strategy} • ${coverageLabel(result)}`;
+      const kind = cleanShortText(result?.alternative_label || strategy, 80);
+      meta.textContent = `${getResultPassCount(result)} pass(es) • ${kind} • ${coverageLabel(result)}`;
 
       const passNames = document.createElement("div");
       passNames.className = "comparison-passes";
@@ -1788,6 +2003,11 @@
         card.appendChild(explanation);
       }
 
+      const coverageDetails = renderCoverageDetails(result);
+      if (coverageDetails) {
+        card.appendChild(coverageDetails);
+      }
+
       const unmet = renderUnmet(getResultUnmet(result));
       if (unmet) {
         card.appendChild(unmet);
@@ -1829,7 +2049,7 @@
     try {
       const controller = new AbortController();
       timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-      const response = await fetch(API_URL, {
+      const response = await fetch(currentApiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         mode: "cors",
