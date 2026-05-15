@@ -23,7 +23,7 @@ Use `?devmode`, `?mode=devmode`, or `?=devmode` to reveal developer panels.
 - The default API endpoint is defined in `assets/script.js`.
 - `index.html` has a Content Security Policy. Update `connect-src` if adding a new API host.
 - Keep API payloads compatible with the backend `POST /score_pass` contract.
-- `resorts.json` and `static/resorts.json` should stay aligned if both are intentionally kept.
+- `resorts.json` is the canonical resort payload for the active UI. Do not reintroduce duplicate resort payloads under `static/` unless a deployment target explicitly needs them.
 
 ## Frontend Guidelines
 

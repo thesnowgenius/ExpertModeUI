@@ -97,7 +97,7 @@
     "wisconsin_multi_resort",
   ]);
   const PASS_PROVIDER_ICON_CONFIG = [
-    { key: "stratton", alt: "Stratton", src: "assets/pass-family-icons/stratton_logo.jpg", aliases: ["stratton mountain"] },
+    { key: "stratton", alt: "Stratton", src: "assets/pass-family-icons/stratton_logo.svg", aliases: ["stratton mountain"] },
   ];
   const PASS_FAMILY_ICON_BY_KEY = (() => {
     const map = new Map();
@@ -127,6 +127,7 @@
   ];
   const GENERATED_PASS_FAMILY_BADGES = new Map();
   const MIN_TYPEAHEAD_CHARS = 1;
+  const TYPEAHEAD_DEBOUNCE_MS = 90;
   const MAX_SUGGESTIONS = 100;
   const REQUEST_TIMEOUT_MS = 20000;
   const MAX_RIDERS = 12;
@@ -642,8 +643,13 @@
     let suggestions = [];
     let activeIndex = -1;
     let closeTimer = null;
+    let typeaheadTimer = null;
 
     function closeSuggestions() {
+      if (typeaheadTimer) {
+        window.clearTimeout(typeaheadTimer);
+        typeaheadTimer = null;
+      }
       list.replaceChildren();
       list.hidden = true;
       input.setAttribute("aria-expanded", "false");
@@ -726,7 +732,17 @@
       renderSuggestions(matches);
     }
 
-    input.addEventListener("input", () => updateSuggestions());
+    function scheduleSuggestions() {
+      if (typeaheadTimer) {
+        window.clearTimeout(typeaheadTimer);
+      }
+      typeaheadTimer = window.setTimeout(() => {
+        typeaheadTimer = null;
+        updateSuggestions();
+      }, TYPEAHEAD_DEBOUNCE_MS);
+    }
+
+    input.addEventListener("input", scheduleSuggestions);
     input.addEventListener("click", () => {
       updateSuggestions({ forceBrowse: true });
     });
