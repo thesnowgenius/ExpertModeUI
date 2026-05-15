@@ -13,7 +13,7 @@ This file is a living plan for future coding agents working in the static Expert
 - Test UI behavior in normal mode and dev mode after changes to `assets/script.js`.
 - Keep `index.html` Content Security Policy aligned with the configured API host.
 - Keep pass-family icons and generated badges visually stable across mobile and desktop widths.
-- Keep `resorts.json` and `static/resorts.json` aligned when both files are intentionally present.
+- Keep `resorts.json` as the single canonical resort payload for the active UI.
 
 ## Validation Gates
 
