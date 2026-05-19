@@ -439,22 +439,6 @@ body{
   border-top:1px solid rgba(23,52,89,.06);
 }
 
-.mode-picker{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  margin-right:auto;
-  color:var(--muted);
-  font-size:13px;
-  font-weight:600;
-}
-
-.mode-picker .select{
-  flex:0 0 168px;
-  padding-top:9px;
-  padding-bottom:9px;
-}
-
 .footer{
   max-width:1040px;
   margin:8px auto 34px;
@@ -965,13 +949,6 @@ body{
   .resort-submit-row{
     flex-wrap:wrap;
     justify-content:stretch;
-  }
-  .mode-picker{
-    flex:1 1 100%;
-    margin-right:0;
-  }
-  .mode-picker .select{
-    flex:1 1 auto;
   }
   .resort-submit-row .btn{
     flex:1 1 auto;
