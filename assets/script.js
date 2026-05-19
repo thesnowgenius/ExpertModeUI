@@ -145,7 +145,6 @@
   const SHARE_STATE_VERSION = 1;
   const SHARE_COPY_FEEDBACK_MS = 2200;
   const TOP_COMPARISON_LIMIT = 3;
-  const VALID_RECOMMENDATION_MODES = new Set(["auto", "single", "multi", "closest"]);
   const VALID_RIDER_CATEGORIES = new Set(["military", "student", "first_responder", "medical", "uphill"]);
   const isDevMode = (() => {
     if (typeof window.__SNOW_GENIUS_DEV_MODE__ === "boolean") {
@@ -175,7 +174,6 @@
     clear: document.querySelector("#clear"),
     share: document.querySelector("#share"),
     submit: document.querySelector("#submit"),
-    recommendationMode: document.querySelector("#recommendation-mode"),
     rawRequest: document.querySelector("#raw-request"),
     rawResponse: document.querySelector("#raw-response"),
     results: document.querySelector("#results"),
@@ -966,9 +964,6 @@
     els.resortsWrap.replaceChildren();
     els.ridersWrap.appendChild(createRiderRow());
     els.resortsWrap.appendChild(createResortRow());
-    if (els.recommendationMode) {
-      els.recommendationMode.value = "auto";
-    }
     els.rawRequest.textContent = "{}";
     els.rawResponse.textContent = "{}";
     showNotice("");
@@ -976,11 +971,6 @@
     clearResults();
     clearShareParamsFromUrl();
     setStatus("Form cleared.");
-  }
-
-  function getRecommendationMode() {
-    const mode = String(els.recommendationMode?.value || "auto").trim().toLowerCase();
-    return VALID_RECOMMENDATION_MODES.has(mode) ? mode : "auto";
   }
 
   function buildRequest() {
@@ -1078,7 +1068,6 @@
       payload: {
         riders,
         resorts,
-        mode: getRecommendationMode(),
       },
       errors,
     };
@@ -1136,7 +1125,6 @@
 
     return {
       version: SHARE_STATE_VERSION,
-      mode: getRecommendationMode(),
       riders,
       resorts,
     };
@@ -1207,10 +1195,6 @@
 
     const riders = Array.isArray(state.riders) ? state.riders.slice(0, MAX_RIDERS) : [];
     const resorts = Array.isArray(state.resorts) ? state.resorts.slice(0, MAX_RESORTS) : [];
-    const mode = String(state.mode || "auto").trim().toLowerCase();
-    if (els.recommendationMode) {
-      els.recommendationMode.value = VALID_RECOMMENDATION_MODES.has(mode) ? mode : "auto";
-    }
 
     els.ridersWrap.replaceChildren();
     (riders.length ? riders : [{}]).forEach((rider) => {
