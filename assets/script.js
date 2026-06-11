@@ -776,6 +776,17 @@
     return resortByNormalizedName.get(normalized) || null;
   }
 
+  function resortDisplayLabel(value) {
+    const raw = cleanShortText(value || "", MAX_RESORT_INPUT_LENGTH);
+    if (!raw) return "resort";
+    const resort = resortById.get(raw) || resortByNormalizedName.get(normalizeText(raw));
+    if (resort) return resort.label;
+    return raw
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .replace(/\b\w/g, (character) => character.toUpperCase());
+  }
+
   function wireResortRow(row) {
     const input = row.querySelector(".resort-input");
     const list = row.querySelector(".suggestions");
@@ -1049,7 +1060,6 @@
         totalRequestedDays += days;
         resorts.push({
           id: selectedResort.id,
-          name: selectedResort.name,
           days,
           no_weekends: Boolean(row.querySelector(".no-weekends")?.checked),
           no_blackouts: Boolean(row.querySelector(".no-blackouts")?.checked),
@@ -1622,11 +1632,13 @@
 
     const list = document.createElement("ul");
     list.className = "unmet-list";
-    deficitKeys.sort().forEach((key) => {
-      const li = document.createElement("li");
-      li.textContent = `${key}: ${unmet[key]} day(s) still uncovered`;
-      list.appendChild(li);
-    });
+    deficitKeys
+      .sort((a, b) => resortDisplayLabel(a).localeCompare(resortDisplayLabel(b)))
+      .forEach((key) => {
+        const li = document.createElement("li");
+        li.textContent = `${resortDisplayLabel(key)}: ${unmet[key]} day(s) still uncovered`;
+        list.appendChild(li);
+      });
     container.appendChild(list);
     return container;
   }
@@ -1869,7 +1881,7 @@
         const requested = Number(row.requested_days) || 0;
         const covered = Number(row.covered_days) || 0;
         const uncovered = Math.max(0, Number(row.uncovered_days) || requested - covered);
-        li.textContent = `${riderLabel} at ${row.resort_id || "resort"}: ${covered}/${requested} day(s) covered${uncovered ? `, ${uncovered} uncovered` : ""}.`;
+        li.textContent = `${riderLabel} at ${resortDisplayLabel(row.resort_id)}: ${covered}/${requested} day(s) covered${uncovered ? `, ${uncovered} uncovered` : ""}.`;
         list.appendChild(li);
       });
     details.appendChild(list);
