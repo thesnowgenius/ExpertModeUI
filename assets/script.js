@@ -131,6 +131,8 @@
   const MAX_SUGGESTIONS = 100;
   const REQUEST_TIMEOUT_MS = 20000;
   const DEV_API_STORAGE_KEY = "snowGeniusExpertApiUrl";
+  const TRACKING_SESSION_STORAGE_KEY = "snowGeniusAnonymousSessionId";
+  const DEV_LOCAL_API_URL = "http://127.0.0.1:8000/score_pass";
   const MAX_RIDERS = 12;
   const MAX_RESORTS = 20;
   const MAX_AGE = 120;
@@ -191,6 +193,7 @@
   let sharedItineraryHandled = false;
   let lastSubmittedPayload = null;
   let shareFeedbackTimeoutId = 0;
+  let inMemoryTrackingSessionId = "";
 
   function postHeight() {
     const body = document.body;
@@ -312,6 +315,14 @@
     }
   }
 
+  function clearStoredApiUrl() {
+    try {
+      window.localStorage?.removeItem(DEV_API_STORAGE_KEY);
+    } catch (_error) {
+      // Local storage can be blocked in embedded contexts; the in-memory reset still applies.
+    }
+  }
+
   function apiSiblingUrl(path) {
     const url = new URL(currentApiUrl, window.location.href);
     url.pathname = path;
@@ -328,6 +339,37 @@
     const text = stripControlChars(value).trim();
     if (!maxLength || text.length <= maxLength) return text;
     return text.slice(0, maxLength).trim();
+  }
+
+  function createTrackingSessionId() {
+    if (typeof window.crypto?.randomUUID === "function") {
+      return window.crypto.randomUUID();
+    }
+    const bytes = new Uint8Array(24);
+    window.crypto?.getRandomValues?.(bytes);
+    const randomPart = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return randomPart || `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  function getTrackingSessionId() {
+    if (inMemoryTrackingSessionId) return inMemoryTrackingSessionId;
+    try {
+      const stored = String(window.localStorage?.getItem(TRACKING_SESSION_STORAGE_KEY) || "").trim();
+      if (/^[a-zA-Z0-9_-]{16,128}$/.test(stored)) {
+        inMemoryTrackingSessionId = stored;
+        return stored;
+      }
+    } catch (_error) {
+      // Embedded browsers can block local storage; the page-scoped ID still supports click attribution.
+    }
+
+    inMemoryTrackingSessionId = createTrackingSessionId();
+    try {
+      window.localStorage?.setItem(TRACKING_SESSION_STORAGE_KEY, inMemoryTrackingSessionId);
+    } catch (_error) {
+      // Keep the in-memory identifier when storage is unavailable.
+    }
+    return inMemoryTrackingSessionId;
   }
 
   function normalizeText(value) {
@@ -414,15 +456,50 @@
 
   function showError(message) {
     if (!els.formError) return;
-    if (!message) {
+    const messages = Array.isArray(message) ? message.filter(Boolean) : message ? [message] : [];
+    if (!messages.length) {
       els.formError.hidden = true;
-      els.formError.textContent = "";
+      els.formError.replaceChildren();
       queueHeightPost();
       return;
     }
     els.formError.hidden = false;
-    els.formError.textContent = message;
+    els.formError.replaceChildren();
+    if (messages.length === 1) {
+      els.formError.textContent = messages[0];
+    } else {
+      const heading = document.createElement("strong");
+      heading.textContent = `Fix ${messages.length} items before submitting:`;
+      const list = document.createElement("ul");
+      list.className = "error-list";
+      messages.forEach((item) => {
+        const li = document.createElement("li");
+        li.textContent = item;
+        list.appendChild(li);
+      });
+      els.formError.appendChild(heading);
+      els.formError.appendChild(list);
+    }
     queueHeightPost();
+  }
+
+  function clearInvalidFields() {
+    document.querySelectorAll(".input.invalid, .select.invalid, [aria-invalid='true']").forEach((control) => {
+      control.classList.remove("invalid");
+      control.removeAttribute("aria-invalid");
+    });
+  }
+
+  function markInvalid(control) {
+    if (!control) return;
+    control.classList.add("invalid");
+    control.setAttribute("aria-invalid", "true");
+  }
+
+  function focusFirstInvalidField() {
+    const firstInvalid = document.querySelector("[aria-invalid='true']");
+    firstInvalid?.focus({ preventScroll: true });
+    firstInvalid?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
 
   function showNotice(message) {
@@ -502,7 +579,13 @@
         referrerPolicy: "no-referrer",
         cache: "no-store",
       });
-      const data = await response.json();
+      const text = await response.text();
+      let data;
+      try {
+        data = text ? JSON.parse(text) : {};
+      } catch (_error) {
+        throw new Error(`Catalog status returned a non-JSON response (${response.status}).`);
+      }
       if (!response.ok) {
         throw new Error(data?.detail || `Catalog status failed (${response.status})`);
       }
@@ -533,7 +616,7 @@
     select.setAttribute("aria-label", "API endpoint preset");
     [
       ["render", DEFAULT_RESOLVED_API_URL, "Render"],
-      ["local", "http://127.0.0.1:8000/score_pass", "Local"],
+      ["local", DEV_LOCAL_API_URL, "Local"],
       ["custom", currentApiUrl, "Custom"],
     ].forEach(([value, url, label]) => {
       const option = document.createElement("option");
@@ -559,6 +642,11 @@
     refresh.type = "button";
     refresh.textContent = "Refresh Status";
 
+    const reset = document.createElement("button");
+    reset.className = "btn subtle";
+    reset.type = "button";
+    reset.textContent = "Reset to Render";
+
     const status = document.createElement("pre");
     status.className = "dev-api-status";
     status.textContent = "Catalog status has not been loaded.";
@@ -570,21 +658,42 @@
       }
     }
 
+    function syncPresetFromUrl(url) {
+      if (url === DEFAULT_RESOLVED_API_URL) {
+        select.value = "render";
+      } else if (url === DEV_LOCAL_API_URL) {
+        select.value = "local";
+      } else {
+        select.value = "custom";
+      }
+    }
+
+    syncPresetFromUrl(currentApiUrl);
     select.addEventListener("change", syncInputFromPreset);
     apply.addEventListener("click", () => {
       const nextUrl = resolveApiUrl(input.value, DEFAULT_RESOLVED_API_URL);
       currentApiUrl = nextUrl;
       input.value = nextUrl;
+      syncPresetFromUrl(nextUrl);
       storeApiUrl(nextUrl);
       setStatus("Developer API endpoint updated.");
       refreshCatalogStatus(panel);
     });
     refresh.addEventListener("click", () => refreshCatalogStatus(panel));
+    reset.addEventListener("click", () => {
+      currentApiUrl = DEFAULT_RESOLVED_API_URL;
+      input.value = currentApiUrl;
+      syncPresetFromUrl(currentApiUrl);
+      clearStoredApiUrl();
+      setStatus("Developer API endpoint reset to Render.");
+      refreshCatalogStatus(panel);
+    });
 
     controls.appendChild(select);
     controls.appendChild(input);
     controls.appendChild(apply);
     controls.appendChild(refresh);
+    controls.appendChild(reset);
     panel.appendChild(title);
     panel.appendChild(controls);
     panel.appendChild(status);
@@ -704,16 +813,22 @@
     const row = document.createElement("div");
     row.className = "row rider-row";
     row.innerHTML = `
-      <input type="number" min="0" max="${MAX_AGE}" placeholder="Age" class="input rider-age" aria-label="Rider age" />
-      <select class="select rider-category" aria-label="Rider category">
-        <option value="">None</option>
-        <option value="military">Military</option>
-        <option value="student">Student</option>
-        <option value="first_responder">First Responder</option>
-        <option value="medical">Nurse/Doc</option>
-        <option value="uphill">Uphill/Skinning</option>
-      </select>
-      <button type="button" class="btn subtle remove-rider">Remove</button>
+      <label class="field rider-age-field">
+        <span class="field-label">Age</span>
+        <input type="number" min="0" max="${MAX_AGE}" inputmode="numeric" placeholder="Age" class="input rider-age" aria-label="Rider age" />
+      </label>
+      <label class="field rider-category-field">
+        <span class="field-label">Discount or activity</span>
+        <select class="select rider-category" aria-label="Rider discount or activity">
+          <option value="">None</option>
+          <option value="military">Military</option>
+          <option value="student">Student</option>
+          <option value="first_responder">First Responder</option>
+          <option value="medical">Medical Professional</option>
+          <option value="uphill">Uphill/Skinning</option>
+        </select>
+      </label>
+      <button type="button" class="btn subtle remove-rider">Remove rider</button>
     `;
     wireRiderRow(row);
     return row;
@@ -723,17 +838,37 @@
     const row = document.createElement("div");
     row.className = "row resort-row";
     row.innerHTML = `
-      <div class="typeahead">
+      <div class="field typeahead">
+        <label class="field-label">Resort</label>
         <input type="text" class="input resort-input" placeholder="Start typing a resort…" autocomplete="off" maxlength="${MAX_RESORT_INPUT_LENGTH}" aria-label="Resort" />
         <ul class="suggestions" role="listbox" hidden></ul>
       </div>
-      <input type="number" min="1" max="${MAX_DAYS_PER_RESORT}" class="input days-input" placeholder="Days" aria-label="Days requested" />
+      <label class="field days-field">
+        <span class="field-label">Days</span>
+        <input type="number" min="1" max="${MAX_DAYS_PER_RESORT}" inputmode="numeric" class="input days-input" placeholder="Days" aria-label="Days requested" />
+      </label>
       <label class="chk"><input type="checkbox" class="no-weekends" /> Only Weekdays</label>
       <label class="chk"><input type="checkbox" class="no-blackouts" /> No blackout dates</label>
-      <button type="button" class="btn subtle remove-resort">Remove</button>
+      <button type="button" class="btn subtle remove-resort">Remove resort</button>
     `;
     wireResortRow(row);
     return row;
+  }
+
+  function updateRowControls(container, rowSelector, buttonSelector) {
+    if (!container) return;
+    const rows = Array.from(container.querySelectorAll(rowSelector));
+    rows.forEach((row) => {
+      const button = row.querySelector(buttonSelector);
+      if (button) {
+        button.hidden = rows.length <= 1;
+      }
+    });
+  }
+
+  function updateAllRowControls() {
+    updateRowControls(els.ridersWrap, ".rider-row", ".remove-rider");
+    updateRowControls(els.resortsWrap, ".resort-row", ".remove-resort");
   }
 
   function removeOrResetRow(row, container, factory) {
@@ -741,9 +876,10 @@
     if (rows.length <= 1) {
       const replacement = factory();
       row.replaceWith(replacement);
-      return;
+    } else {
+      row.remove();
     }
-    row.remove();
+    updateAllRowControls();
   }
 
   function wireRiderRow(row) {
@@ -799,7 +935,13 @@
     input.dataset.typeaheadBound = "true";
 
     const listId = `resort-suggestions-${++typeaheadCounter}`;
+    const inputId = `resort-input-${typeaheadCounter}`;
+    const label = row.querySelector(".field-label");
     list.id = listId;
+    input.id = inputId;
+    if (label) {
+      label.htmlFor = inputId;
+    }
     input.setAttribute("role", "combobox");
     input.setAttribute("aria-autocomplete", "list");
     input.setAttribute("aria-expanded", "false");
@@ -967,6 +1109,7 @@
   function initializeExistingRows() {
     document.querySelectorAll(".rider-row").forEach((row) => wireRiderRow(row));
     document.querySelectorAll(".resort-row").forEach((row) => wireResortRow(row));
+    updateAllRowControls();
   }
 
   function resetForm() {
@@ -975,6 +1118,7 @@
     els.resortsWrap.replaceChildren();
     els.ridersWrap.appendChild(createRiderRow());
     els.resortsWrap.appendChild(createResortRow());
+    updateAllRowControls();
     els.rawRequest.textContent = "{}";
     els.rawResponse.textContent = "{}";
     showNotice("");
@@ -985,6 +1129,7 @@
   }
 
   function buildRequest() {
+    clearInvalidFields();
     const errors = [];
     let totalRequestedDays = 0;
 
@@ -1000,11 +1145,13 @@
       const age = ageText === "" ? NaN : Number(ageText);
       if (!Number.isInteger(age) || age < 0 || age > MAX_AGE) {
         errors.push(`Rider ${index + 1}: age is required and must be between 0 and ${MAX_AGE}.`);
+        markInvalid(ageInput);
       }
 
       const category = canonicalizeCategory(categorySelect?.value) || null;
       if (category && !VALID_RIDER_CATEGORIES.has(category)) {
         errors.push(`Rider ${index + 1}: category is invalid.`);
+        markInvalid(categorySelect);
       }
       return {
         age: Number.isInteger(age) && age >= 0 && age <= MAX_AGE ? age : 0,
@@ -1022,6 +1169,7 @@
     }
 
     const resorts = [];
+    let hasResortInput = false;
     resortRows.forEach((row, index) => {
       const resortInput = row.querySelector(".resort-input");
       const daysInput = row.querySelector(".days-input");
@@ -1032,17 +1180,21 @@
       if (isBlank) {
         return;
       }
+      hasResortInput = true;
 
       if (!rawName) {
         errors.push(`Resort ${index + 1}: resort name is required.`);
+        markInvalid(resortInput);
       }
       if (String(resortInput?.value || "").trim().length > MAX_RESORT_INPUT_LENGTH) {
         errors.push(`Resort ${index + 1}: resort name is too long.`);
+        markInvalid(resortInput);
       }
 
       const days = Number(daysValue);
       if (!Number.isInteger(days) || days < 1 || days > MAX_DAYS_PER_RESORT) {
         errors.push(`Resort ${index + 1}: days must be a whole number between 1 and ${MAX_DAYS_PER_RESORT}.`);
+        markInvalid(daysInput);
       }
 
       const exact = findExactResortMatch(rawName);
@@ -1054,6 +1206,7 @@
       const selectedResort = selectedById || exact || null;
       if (rawName && !selectedResort) {
         errors.push(`Resort ${index + 1}: choose a resort from the suggestions list.`);
+        markInvalid(resortInput);
       }
 
       if (selectedResort && Number.isInteger(days) && days >= 1 && days <= MAX_DAYS_PER_RESORT) {
@@ -1067,17 +1220,22 @@
       }
     });
 
-    if (!resorts.length) {
+    if (!resorts.length && !hasResortInput) {
       errors.push("Add at least one resort.");
+      const firstResortRow = resortRows[0];
+      markInvalid(firstResortRow?.querySelector(".resort-input"));
+      markInvalid(firstResortRow?.querySelector(".days-input"));
     }
     if (totalRequestedDays > MAX_TOTAL_REQUESTED_DAYS) {
       errors.push(`Total requested days cannot exceed ${MAX_TOTAL_REQUESTED_DAYS}.`);
+      resortRows.forEach((row) => markInvalid(row.querySelector(".days-input")));
     }
 
     return {
       payload: {
         riders,
         resorts,
+        tracking_session_id: getTrackingSessionId(),
       },
       errors,
     };
@@ -1375,6 +1533,7 @@
 
   function getPassItemUrl(passItem) {
     const raw =
+      passItem?.tracking_url ??
       passItem?.url ??
       passItem?.pass_url ??
       passItem?.purchase_url ??
@@ -1414,6 +1573,7 @@
 
     const familyCandidates = [
       passItem?.pass_family,
+      passItem?.pass_family_id,
       passItem?.pass_family_name,
       passItem?.family,
       passItem?.family_name,
@@ -1688,6 +1848,10 @@
         {
           pass_id: item.pass_id,
           name: item.pass_name,
+          pass_family: item.pass_family,
+          pass_family_id: item.pass_family,
+          tracking_url: item.tracking_url,
+          destination_url: item.destination_url,
           url: item.url,
           price: item.total_cost,
           total_days: item.total_days_covered,
@@ -1900,7 +2064,9 @@
     title.textContent = "Compare Options";
     const note = document.createElement("p");
     const visibleCount = Math.min(results.length, TOP_COMPARISON_LIMIT);
-    note.textContent = visibleCount > 1 ? `Top ${visibleCount} returned options` : "Top returned option";
+    note.textContent = visibleCount > 1
+      ? `Top ${visibleCount} options ranked by fit; alternative prices may not be ascending.`
+      : "Top recommendation returned by the solver.";
     heading.appendChild(title);
     heading.appendChild(note);
     panel.appendChild(heading);
@@ -1908,15 +2074,22 @@
     const grid = document.createElement("div");
     grid.className = "comparison-grid";
     results.slice(0, TOP_COMPARISON_LIMIT).forEach((result, index) => {
-      const card = document.createElement("article");
+      const card = document.createElement("a");
       card.className = "comparison-card";
+      card.href = `#recommendation-option-${index + 1}`;
+      card.addEventListener("click", () => {
+        const target = document.querySelector(card.getAttribute("href"));
+        if (target instanceof HTMLDetailsElement) {
+          target.open = true;
+        }
+      });
       if (index === 0) {
         card.classList.add("best");
       }
 
       const label = document.createElement("div");
       label.className = "comparison-label";
-      label.textContent = index === 0 ? "Top returned" : `Option ${index + 1}`;
+      label.textContent = index === 0 ? "Recommended" : `Alternative ${index}`;
 
       const price = document.createElement("strong");
       price.className = "comparison-price";
@@ -1935,10 +2108,15 @@
         .map((passItem) => passItem.name || passItem.pass_id || "Pass")
         .join(", ") || "No pass details";
 
+      const jump = document.createElement("span");
+      jump.className = "comparison-jump";
+      jump.textContent = index === 0 ? "View recommendation" : "View alternative";
+
       card.appendChild(label);
       card.appendChild(price);
       card.appendChild(meta);
       card.appendChild(passNames);
+      card.appendChild(jump);
       grid.appendChild(card);
     });
     panel.appendChild(grid);
@@ -1963,8 +2141,10 @@
     }
 
     resultOptions.forEach((result, index) => {
-      const card = document.createElement("section");
-      card.className = "result-card";
+      const isRecommended = index === 0;
+      const card = document.createElement(isRecommended ? "section" : "details");
+      card.className = isRecommended ? "result-card recommended-result" : "result-card alternative-result";
+      card.id = `recommendation-option-${index + 1}`;
 
       const head = document.createElement("div");
       head.className = "result-head";
@@ -1990,24 +2170,38 @@
       }
       summary.textContent = summaryParts.join(" • ");
 
-      card.appendChild(head);
-      card.appendChild(summary);
-      card.appendChild(renderPassList(getResultPasses(result)));
+      const content = document.createElement("div");
+      content.className = "result-content";
+
+      if (isRecommended) {
+        card.appendChild(head);
+        card.appendChild(summary);
+      } else {
+        const disclosure = document.createElement("summary");
+        disclosure.className = "result-option-summary";
+        disclosure.appendChild(head);
+        disclosure.appendChild(summary);
+        card.appendChild(disclosure);
+      }
+
+      content.appendChild(renderPassList(getResultPasses(result)));
 
       const explanation = renderRecommendationExplanation(result, index, resultOptions, payload);
       if (explanation) {
-        card.appendChild(explanation);
+        content.appendChild(explanation);
       }
 
       const coverageDetails = renderCoverageDetails(result);
       if (coverageDetails) {
-        card.appendChild(coverageDetails);
+        content.appendChild(coverageDetails);
       }
 
       const unmet = renderUnmet(getResultUnmet(result));
       if (unmet) {
-        card.appendChild(unmet);
+        content.appendChild(unmet);
       }
+
+      card.appendChild(content);
 
       els.results.appendChild(card);
     });
@@ -2028,9 +2222,10 @@
     els.rawRequest.textContent = JSON.stringify(payload, null, 2);
 
     if (errors.length) {
-      showError(errors[0]);
+      showError(errors);
       clearResults();
       setStatus("Validation failed.");
+      focusFirstInvalidField();
       if (fromSharedLink) {
         showNotice("Shared itinerary loaded, but it needs a valid trip before recommendations can run.");
         scrollToPlanner();
@@ -2113,6 +2308,7 @@
       showError("");
       showNotice("");
       els.ridersWrap.appendChild(createRiderRow());
+      updateAllRowControls();
     });
 
     els.addResort?.addEventListener("click", () => {
@@ -2125,6 +2321,7 @@
       showError("");
       showNotice("");
       els.resortsWrap.appendChild(createResortRow());
+      updateAllRowControls();
     });
 
     els.clear?.addEventListener("click", resetForm);
@@ -2135,6 +2332,20 @@
       });
     });
     els.submit?.addEventListener("click", () => submitRequest());
+    els.appMain?.addEventListener("input", (event) => {
+      const control = event.target;
+      if (control instanceof HTMLElement && control.matches(".input, .select")) {
+        control.classList.remove("invalid");
+        control.removeAttribute("aria-invalid");
+      }
+    });
+    els.appMain?.addEventListener("change", (event) => {
+      const control = event.target;
+      if (control instanceof HTMLElement && control.matches(".input, .select")) {
+        control.classList.remove("invalid");
+        control.removeAttribute("aria-invalid");
+      }
+    });
   }
 
   initializeExistingRows();

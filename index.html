@@ -11,7 +11,7 @@
   <title>Snow Genius — Expert Mode</title>
   <link rel="preload" href="resorts.json" as="fetch" crossorigin="anonymous">
   <script src="assets/bootstrap.js?v=20260226a"></script>
-  <link rel="stylesheet" href="assets/styles.css?v=20260513a" />
+  <link rel="stylesheet" href="assets/styles.css?v=20260611b" />
 </head>
 <body>
   <header class="hero hero-compact">
@@ -31,16 +31,22 @@
       <div id="riders" class="rows">
         <!-- First rider row (Stable-4 style) -->
         <div class="row rider-row">
-          <input type="number" min="0" max="120" placeholder="Age" class="input rider-age" aria-label="Rider age" />
-          <select class="select rider-category" aria-label="Rider category">
-            <option value="">None</option>
-            <option value="military">Military</option>
-            <option value="student">Student</option>
-            <option value="first_responder">First Responder</option>
-            <option value="medical">Nurse/Doc</option>
-            <option value="uphill">Uphill/Skinning</option>
-          </select>
-          <button type="button" class="btn subtle remove-rider">Remove</button>
+          <label class="field rider-age-field">
+            <span class="field-label">Age</span>
+            <input type="number" min="0" max="120" inputmode="numeric" placeholder="Age" class="input rider-age" aria-label="Rider age" />
+          </label>
+          <label class="field rider-category-field">
+            <span class="field-label">Discount or activity</span>
+            <select class="select rider-category" aria-label="Rider discount or activity">
+              <option value="">None</option>
+              <option value="military">Military</option>
+              <option value="student">Student</option>
+              <option value="first_responder">First Responder</option>
+              <option value="medical">Medical Professional</option>
+              <option value="uphill">Uphill/Skinning</option>
+            </select>
+          </label>
+          <button type="button" class="btn subtle remove-rider">Remove rider</button>
         </div>
       </div>
     </section>
@@ -56,14 +62,18 @@
       <div class="rows" id="resorts">
         <!-- First resort row -->
         <div class="row resort-row">
-          <div class="typeahead">
+          <div class="field typeahead">
+            <label class="field-label">Resort</label>
             <input type="text" class="input resort-input" placeholder="Start typing a resort…" autocomplete="off" maxlength="120" aria-label="Resort" />
             <ul class="suggestions" role="listbox" hidden></ul>
           </div>
-          <input type="number" min="1" max="60" class="input days-input" placeholder="Days" aria-label="Days requested" />
+          <label class="field days-field">
+            <span class="field-label">Days</span>
+            <input type="number" min="1" max="60" inputmode="numeric" class="input days-input" placeholder="Days" aria-label="Days requested" />
+          </label>
           <label class="chk"><input type="checkbox" class="no-weekends" /> Only Weekdays</label>
           <label class="chk"><input type="checkbox" class="no-blackouts" /> No blackout dates</label>
-          <button type="button" class="btn subtle remove-resort">Remove</button>
+          <button type="button" class="btn subtle remove-resort">Remove resort</button>
         </div>
       </div>
 
@@ -105,6 +115,6 @@
 
   <footer class="footer">© Snow Genius</footer>
 
-  <script src="assets/script.js?v=20260611a" defer></script>
+  <script src="assets/script.js?v=20260615a" defer></script>
 </body>
 </html>
