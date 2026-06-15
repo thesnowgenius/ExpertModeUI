@@ -319,7 +319,33 @@ body{
 .row{
   display:flex;
   gap:10px;
-  align-items:center;
+  align-items:flex-end;
+}
+
+.field{
+  display:grid;
+  flex:1 1 0;
+  gap:5px;
+  min-width:0;
+}
+
+.field-label{
+  color:#496076;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.02em;
+}
+
+.rider-age-field{
+  flex:0 1 150px;
+}
+
+.rider-category-field{
+  flex:1 1 240px;
+}
+
+.days-field{
+  flex:0 1 105px;
 }
 
 .input,
@@ -327,14 +353,23 @@ body{
   width:100%;
   flex:1;
   min-width:0;
+  min-height:44px;
   padding:11px 13px;
   border-radius:14px;
   border:1px solid var(--line);
   background:rgba(255,255,255,.92);
   color:var(--ink);
+  font:inherit;
   outline:none;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.75);
   transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+
+.input.invalid,
+.select.invalid{
+  border-color:rgba(185,28,28,.62);
+  background:rgba(254,242,242,.94);
+  box-shadow:0 0 0 3px rgba(185,28,28,.1);
 }
 
 .input::placeholder{color:#8b9aad}
@@ -364,6 +399,7 @@ body{
   color:var(--muted);
   font-size:13px;
   white-space:nowrap;
+  min-height:44px;
   padding:8px 10px;
   border-radius:999px;
   background:rgba(255,255,255,.72);
@@ -376,12 +412,14 @@ body{
   display:inline-flex;
   align-items:center;
   justify-content:center;
+  min-height:44px;
   padding:9px 14px;
   border-radius:999px;
   border:1px solid rgba(255,255,255,.7);
   background:linear-gradient(180deg, rgba(255,255,255,.97), rgba(245,248,252,.93));
   color:var(--ink);
   font-weight:600;
+  font-size:14px;
   letter-spacing:-0.01em;
   box-shadow:0 2px 8px rgba(15,23,42,.04);
   cursor:pointer;
@@ -427,6 +465,11 @@ body{
   opacity:.65;
   cursor:not-allowed;
   transform:none;
+}
+
+.remove-rider[hidden],
+.remove-resort[hidden]{
+  display:none !important;
 }
 
 .resort-submit-row{
@@ -516,6 +559,11 @@ body{
   border-radius:14px;
   background:var(--danger-bg);
   color:var(--danger);
+}
+
+.error-list{
+  margin:6px 0 0 20px;
+  padding:0;
 }
 
 .share-link-fallback{
@@ -615,11 +663,26 @@ body{
   border-radius:14px;
   border:1px solid rgba(23,52,89,.08);
   background:rgba(255,255,255,.76);
+  color:inherit;
+  text-decoration:none;
+  transition:border-color .15s ease, box-shadow .15s ease, transform .15s ease;
 }
 
 .comparison-card.best{
   border-color:rgba(10,132,255,.22);
   box-shadow:inset 0 0 0 1px rgba(10,132,255,.08);
+}
+
+.comparison-card:hover,
+.comparison-card:focus-visible{
+  border-color:rgba(10,132,255,.3);
+  box-shadow:0 8px 20px rgba(15,23,42,.08);
+  transform:translateY(-1px);
+}
+
+.comparison-card:focus-visible{
+  outline:2px solid rgba(10,132,255,.5);
+  outline-offset:2px;
 }
 
 .comparison-label{
@@ -647,6 +710,55 @@ body{
 
 .comparison-passes{
   color:#2f455a;
+}
+
+.comparison-jump{
+  color:#145ca8;
+  font-size:12px;
+  font-weight:700;
+}
+
+.result-card{
+  scroll-margin-top:18px;
+}
+
+.alternative-result{
+  padding:0;
+  overflow:hidden;
+}
+
+.result-option-summary{
+  display:grid;
+  gap:4px;
+  padding:14px;
+  cursor:pointer;
+  list-style:none;
+}
+
+.result-option-summary::-webkit-details-marker{
+  display:none;
+}
+
+.result-option-summary::after{
+  content:"Show details";
+  margin-top:4px;
+  color:#145ca8;
+  font-size:12px;
+  font-weight:700;
+}
+
+.alternative-result[open] .result-option-summary::after{
+  content:"Hide details";
+}
+
+.result-option-summary:focus-visible{
+  outline:2px solid rgba(10,132,255,.5);
+  outline-offset:-4px;
+}
+
+.alternative-result .result-content{
+  padding:0 14px 14px;
+  border-top:1px solid rgba(23,52,89,.06);
 }
 
 .pass-list{
@@ -891,7 +1003,7 @@ body{
 
 .dev-api-controls{
   display:grid;
-  grid-template-columns:minmax(120px, .45fr) minmax(220px, 1fr) auto auto;
+  grid-template-columns:minmax(120px, .45fr) minmax(220px, 1fr) auto auto auto;
   gap:8px;
   align-items:center;
 }
@@ -943,8 +1055,12 @@ body{
     white-space:nowrap;
   }
   .row{flex-wrap:wrap}
-  .typeahead{flex:1 1 100%}
-  .input, .select{flex:1 1 100%}
+  .field,
+  .typeahead,
+  .rider-age-field,
+  .rider-category-field,
+  .days-field{flex:1 1 100%}
+  .input, .select{flex:1 1 100%; font-size:16px}
   .chk{white-space:normal}
   .resort-submit-row{
     flex-wrap:wrap;
