@@ -148,6 +148,7 @@
   const SHARE_COPY_FEEDBACK_MS = 2200;
   const TOP_COMPARISON_LIMIT = 3;
   const VALID_RIDER_CATEGORIES = new Set(["military", "student", "first_responder", "medical", "uphill"]);
+  const RESORT_ALIAS_LEADING_WORDS = new Set(["mount", "mt", "ski", "the"]);
   const isDevMode = (() => {
     if (typeof window.__SNOW_GENIUS_DEV_MODE__ === "boolean") {
       return window.__SNOW_GENIUS_DEV_MODE__;
@@ -189,6 +190,7 @@
   let resortCatalog = [];
   let resortById = new Map();
   let resortByNormalizedName = new Map();
+  let resortByNormalizedSearchPhrase = new Map();
   let typeaheadCounter = 0;
   let sharedItineraryHandled = false;
   let lastSubmittedPayload = null;
@@ -379,6 +381,17 @@
       .replace(/\s+/g, " ");
   }
 
+  function normalizeResortSearchText(value) {
+    return String(value || "")
+      .normalize("NFKD")
+      .toLowerCase()
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/&/g, " and ")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+      .replace(/\s+/g, " ");
+  }
+
   function normalizePassFamilyKey(value) {
     return String(value || "")
       .trim()
@@ -432,10 +445,6 @@
   function resortLabel(resort) {
     const state = formatState(resort.state);
     return state ? `${resort.name}, ${state}` : resort.name;
-  }
-
-  function startsWithQuery(value, query) {
-    return normalizeText(value).startsWith(query);
   }
 
   function toCurrency(value) {
@@ -752,6 +761,69 @@
     return normalizeText(rawPublicAccess) === "yes";
   }
 
+  function addResortSearchPhrase(phrases, value) {
+    const normalized = normalizeResortSearchText(value);
+    if (!normalized) return;
+    phrases.add(normalized);
+
+    const words = normalized.split(" ").filter(Boolean);
+    if (words.length > 1 && RESORT_ALIAS_LEADING_WORDS.has(words[0])) {
+      const rest = words.slice(1).join(" ");
+      phrases.add(rest);
+      if (words[0] === "mount") {
+        phrases.add(`mt ${rest}`);
+      } else if (words[0] === "mt") {
+        phrases.add(`mount ${rest}`);
+      }
+    }
+  }
+
+  function buildResortSearchPhrases(resort) {
+    const phrases = new Set();
+    addResortSearchPhrase(phrases, resort.name);
+    addResortSearchPhrase(phrases, resort.label);
+    addResortSearchPhrase(phrases, resort.id);
+    addResortSearchPhrase(phrases, String(resort.id || "").replace(/[_-]+/g, " "));
+    return Array.from(phrases);
+  }
+
+  function setUniqueSearchPhrase(map, phrase, resort) {
+    if (!phrase) return;
+    if (!map.has(phrase)) {
+      map.set(phrase, resort);
+      return;
+    }
+    const existing = map.get(phrase);
+    if (existing && existing.id !== resort.id) {
+      map.set(phrase, null);
+    }
+  }
+
+  function resortSearchScore(resort, query) {
+    const normalizedQuery = normalizeResortSearchText(query);
+    if (!normalizedQuery) return 0;
+    const phrases = Array.isArray(resort.searchPhrases) && resort.searchPhrases.length
+      ? resort.searchPhrases
+      : [normalizeResortSearchText(`${resort.name} ${resort.label} ${resort.id}`)];
+
+    let best = Infinity;
+    phrases.forEach((phrase) => {
+      if (!phrase) return;
+      if (phrase === normalizedQuery) {
+        best = Math.min(best, 0);
+      } else if (phrase.startsWith(normalizedQuery)) {
+        best = Math.min(best, 1);
+      } else if (phrase.split(" ").some((word) => word.startsWith(normalizedQuery))) {
+        best = Math.min(best, 2);
+      } else if (phrase.includes(` ${normalizedQuery}`)) {
+        best = Math.min(best, 3);
+      } else if (phrase.includes(normalizedQuery)) {
+        best = Math.min(best, 4);
+      }
+    });
+    return best;
+  }
+
   function parseResortRows(list) {
     return (Array.isArray(list) ? list : [])
       .filter((row) => hasPublicAccess(row))
@@ -769,7 +841,8 @@
           state,
         };
         result.label = resortLabel(result);
-        result.searchText = normalizeText(`${result.name} ${result.label} ${result.id}`);
+        result.searchPhrases = buildResortSearchPhrases(result);
+        result.searchText = result.searchPhrases.join(" ");
         return result;
       })
       .filter(Boolean);
@@ -797,11 +870,16 @@
         resortCatalog.sort((a, b) => a.name.localeCompare(b.name));
         resortById = new Map();
         resortByNormalizedName = new Map();
+        const searchPhrases = new Map();
         for (const resort of resortCatalog) {
           resortById.set(resort.id, resort);
           resortByNormalizedName.set(normalizeText(resort.name), resort);
           resortByNormalizedName.set(normalizeText(resort.label), resort);
+          resort.searchPhrases.forEach((phrase) => setUniqueSearchPhrase(searchPhrases, phrase, resort));
         }
+        resortByNormalizedSearchPhrase = new Map(
+          Array.from(searchPhrases.entries()).filter((entry) => entry[1])
+        );
         document.querySelectorAll(".resort-row").forEach((row) => wireResortRow(row));
       })
       .catch((error) => {
@@ -906,10 +984,19 @@
 
   function findExactResortMatch(text) {
     if (!text) return null;
-    const direct = resortByNormalizedName.get(normalizeText(text));
+    const normalizedName = normalizeText(text);
+    const direct = resortByNormalizedName.get(normalizedName);
     if (direct) return direct;
-    const normalized = normalizeText(text.replace(/,\s*[A-Za-z. ]+$/, ""));
-    return resortByNormalizedName.get(normalized) || null;
+    const directPhrase = resortByNormalizedSearchPhrase.get(normalizeResortSearchText(text));
+    if (directPhrase) return directPhrase;
+
+    const withoutState = text.replace(/,\s*[A-Za-z. ]+$/, "");
+    const normalizedWithoutState = normalizeText(withoutState);
+    return (
+      resortByNormalizedName.get(normalizedWithoutState) ||
+      resortByNormalizedSearchPhrase.get(normalizeResortSearchText(withoutState)) ||
+      null
+    );
   }
 
   function resortDisplayLabel(value) {
@@ -1014,7 +1101,7 @@
 
     function updateSuggestions({ forceBrowse = false } = {}) {
       const rawValue = input.value.trim();
-      const query = normalizeText(rawValue);
+      const query = normalizeResortSearchText(rawValue);
       if (rawValue !== (input.dataset.selectedLabel || "")) {
         clearSelectedResort(input);
       }
@@ -1031,11 +1118,13 @@
 
       const matches = (query.length >= MIN_TYPEAHEAD_CHARS)
         ? resortCatalog
-          .filter((resort) =>
-            startsWithQuery(resort.name, query) ||
-            startsWithQuery(resort.label, query) ||
-            startsWithQuery(resort.id, query)
-          )
+          .map((resort) => ({
+            resort,
+            score: resortSearchScore(resort, query),
+          }))
+          .filter((item) => Number.isFinite(item.score))
+          .sort((a, b) => a.score - b.score || a.resort.name.localeCompare(b.resort.name))
+          .map((item) => item.resort)
           .slice(0, MAX_SUGGESTIONS)
         : resortCatalog.slice(0, MAX_SUGGESTIONS);
       renderSuggestions(matches);
@@ -2021,6 +2110,102 @@
     return details;
   }
 
+  function coverageMetrics(row) {
+    const requested = Number(row?.requested_days) || 0;
+    const covered = Number(row?.covered_days) || 0;
+    const rawUncovered = row?.uncovered_days;
+    const parsedUncovered = Number(rawUncovered);
+    const hasExplicitUncovered =
+      rawUncovered !== undefined &&
+      rawUncovered !== null &&
+      String(rawUncovered).trim() !== "" &&
+      Number.isFinite(parsedUncovered);
+    const uncovered = Math.max(0, hasExplicitUncovered ? parsedUncovered : requested - covered);
+    return { requested, covered, uncovered };
+  }
+
+  function coverageAgeContext(row) {
+    const direct =
+      row?.age_bracket ??
+      row?.age_group ??
+      row?.rider_age_bracket ??
+      row?.price_category ??
+      row?.category ??
+      "";
+    const label = cleanShortText(direct, 40);
+    if (label) return label;
+
+    const age = Number(row?.rider_age ?? row?.age);
+    if (Number.isFinite(age)) return `age ${age}`;
+
+    const minAge = Number(row?.min_age ?? row?.age_min);
+    const maxAge = Number(row?.max_age ?? row?.age_max);
+    if (Number.isFinite(minAge) && Number.isFinite(maxAge)) return `ages ${minAge}-${maxAge}`;
+    if (Number.isFinite(minAge)) return `age ${minAge}+`;
+    if (Number.isFinite(maxAge)) return `age ${maxAge} and under`;
+    return "";
+  }
+
+  function coverageRiderLabel(row) {
+    const rawIndex = row?.rider_index;
+    const index = Number(rawIndex);
+    const hasIndex =
+      rawIndex !== undefined &&
+      rawIndex !== null &&
+      String(rawIndex).trim() !== "" &&
+      Number.isInteger(index) &&
+      index >= 0;
+    const base = hasIndex ? `Rider ${index + 1}` : "Rider";
+    const ageContext = coverageAgeContext(row);
+    return ageContext ? `${base} (${ageContext})` : base;
+  }
+
+  function summarizeCoverageRows(coverage) {
+    const summaries = [];
+    const fullCoverageByKey = new Map();
+
+    coverage
+      .filter((row) => Number(row?.requested_days) > 0)
+      .forEach((row) => {
+        const metrics = coverageMetrics(row);
+        const hasMiss = metrics.uncovered > 0;
+        const riderLabel = coverageRiderLabel(row);
+        if (hasMiss) {
+          summaries.push({ row, ...metrics, riderLabels: new Set([riderLabel]), hasMiss });
+          return;
+        }
+
+        const key = [
+          cleanShortText(row?.resort_id || "", MAX_RESORT_ID_LENGTH),
+          metrics.requested,
+          metrics.covered,
+          metrics.uncovered,
+        ].join("|");
+        const existing = fullCoverageByKey.get(key);
+        if (existing) {
+          existing.riderLabels.add(riderLabel);
+          return;
+        }
+
+        const summary = { row, ...metrics, riderLabels: new Set([riderLabel]), hasMiss };
+        fullCoverageByKey.set(key, summary);
+        summaries.push(summary);
+      });
+
+    return summaries.slice(0, 80);
+  }
+
+  function coverageSummaryText(summary) {
+    const resort = resortDisplayLabel(summary.row?.resort_id);
+    const riderCount = summary.riderLabels.size;
+    const subject = !summary.hasMiss && riderCount > 1
+      ? `${riderCount} riders`
+      : coverageRiderLabel(summary.row);
+    return `${subject} at ${resort}: ${summary.covered}/${summary.requested} day(s) covered${
+      summary.uncovered ? `, ${summary.uncovered} uncovered` : ""
+    }.`;
+  }
+
   function renderCoverageDetails(result) {
     const coverage = getResultCoverage(result);
     const unmetByRider = getResultUnmetByRider(result);
@@ -2036,16 +2221,10 @@
 
     const list = document.createElement("ul");
     list.className = "why-list";
-    coverage
-      .filter((row) => Number(row?.requested_days) > 0)
-      .slice(0, 80)
-      .forEach((row) => {
+    summarizeCoverageRows(coverage)
+      .forEach((summary) => {
         const li = document.createElement("li");
-        const riderLabel = Number.isInteger(Number(row.rider_index)) ? `Rider ${Number(row.rider_index) + 1}` : "Rider";
-        const requested = Number(row.requested_days) || 0;
-        const covered = Number(row.covered_days) || 0;
-        const uncovered = Math.max(0, Number(row.uncovered_days) || requested - covered);
-        li.textContent = `${riderLabel} at ${resortDisplayLabel(row.resort_id)}: ${covered}/${requested} day(s) covered${uncovered ? `, ${uncovered} uncovered` : ""}.`;
+        li.textContent = coverageSummaryText(summary);
         list.appendChild(li);
       });
     details.appendChild(list);
