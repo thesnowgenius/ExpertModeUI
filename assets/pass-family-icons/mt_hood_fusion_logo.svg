@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="1000" height="1000"><style>
+    #light-icon {
+      display: inline;
+    }
+    #dark-icon {
+      display: none;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      #light-icon {
+        display: none;
+      }
+      #dark-icon {
+        display: inline;
+      }
+    }
+  </style><g id="light-icon"><svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="1000" height="1000"><g><g transform="matrix(1.25,0,0,1.25,0,0)"><svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="800" height="800"><svg width="800" height="800" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="400" cy="400" r="400" fill="#0D3454"></circle>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M716 322V347.408H604.8C604.378 352.006 603.701 357.674 602.638 364.153H693.841V389.561H597.085C595.513 395.289 593.65 401.27 591.445 407.403H667.991V432.811H580.47C580.233 433.275 580.005 433.73 579.767 434.186C556.888 478.262 509.099 530.437 410.691 534.747V603H384.227V534.739C286.751 530.394 239.41 478.22 216.741 434.144C198.966 399.574 193.589 365.317 191.964 347.408H112.465V365.14H149.71V353.912H176.174V390.548H86V322H716ZM218.586 347.408C220.3 363.875 225.44 393.99 240.868 423.641C268.748 477.25 316.941 506.016 384.227 509.305V347.408H218.586ZM575.762 364.152H410.71V347.408H578.195C577.703 352.022 576.948 357.708 575.762 364.152ZM410.71 407.402H563.232C565.728 401.32 567.81 395.339 569.576 389.561H410.71V407.402ZM410.71 432.81V509.313C474.771 506.251 521.708 480.556 550.501 432.81H410.71Z" fill="white"></path>
+</svg></svg></g></g></svg></g><g id="dark-icon"><svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="1000" height="1000"><g clip-path="url(#SvgjsClipPath1111)"><rect width="1000" height="1000" fill="#808080"></rect><g transform="matrix(1,0,0,1,100,100)"><svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="800" height="800"><svg width="800" height="800" viewBox="0 0 800 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="400" cy="400" r="400" fill="#0D3454"></circle>
+<path fill-rule="evenodd" clip-rule="evenodd" d="M716 322V347.408H604.8C604.378 352.006 603.701 357.674 602.638 364.153H693.841V389.561H597.085C595.513 395.289 593.65 401.27 591.445 407.403H667.991V432.811H580.47C580.233 433.275 580.005 433.73 579.767 434.186C556.888 478.262 509.099 530.437 410.691 534.747V603H384.227V534.739C286.751 530.394 239.41 478.22 216.741 434.144C198.966 399.574 193.589 365.317 191.964 347.408H112.465V365.14H149.71V353.912H176.174V390.548H86V322H716ZM218.586 347.408C220.3 363.875 225.44 393.99 240.868 423.641C268.748 477.25 316.941 506.016 384.227 509.305V347.408H218.586ZM575.762 364.152H410.71V347.408H578.195C577.703 352.022 576.948 357.708 575.762 364.152ZM410.71 407.402H563.232C565.728 401.32 567.81 395.339 569.576 389.561H410.71V407.402ZM410.71 432.81V509.313C474.771 506.251 521.708 480.556 550.501 432.81H410.71Z" fill="white"></path>
+</svg></svg></g></g><defs><clipPath id="SvgjsClipPath1111"><rect width="1000" height="1000" x="0" y="0" rx="500" ry="500"></rect></clipPath></defs></svg></g></svg>

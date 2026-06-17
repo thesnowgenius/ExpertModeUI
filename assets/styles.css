@@ -850,14 +850,15 @@ body{
 }
 
 .pass-brand-logo{
-  width:2.2em;
-  height:1em;
+  width:2.75em;
+  height:1.55em;
   object-fit:contain;
   object-position:left center;
   padding:0;
   border:none;
   background:none;
   box-shadow:none;
+  filter:drop-shadow(0 0 1px rgba(23,52,89,.45));
   flex:0 0 auto;
 }
 
