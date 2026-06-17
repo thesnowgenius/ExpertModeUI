@@ -2,99 +2,152 @@
   const DEFAULT_API_URL = "https://pass-picker-expert-mode-multi.onrender.com/score_pass";
   const ALLOWED_REMOTE_API_HOSTS = new Set(["pass-picker-expert-mode-multi.onrender.com"]);
   const PASS_FAMILY_ICON_CONFIG = [
-    { key: "alta_bird", alt: "Alta-Bird Pass", src: "assets/pass-family-icons/alta_bird.svg", aliases: ["alta bird pass"] },
-    { key: "aspen_snowmass", alt: "Aspen Snowmass", src: "assets/pass-family-icons/aspen_snowmass.svg", aliases: ["aspen snowmass"] },
-    { key: "berkshire_summit", alt: "Berkshire Summit", src: "assets/pass-family-icons/berkshire_summit.svg", aliases: ["berkshire summit"] },
-    { key: "cali_pass", alt: "Cali Pass", src: "assets/pass-family-icons/cali_pass_logo.png", aliases: ["cali pass"] },
     {
       key: "combo_49n_silver",
       alt: "49 North + Silver Mountain",
-      src: "assets/pass-family-icons/combo_49n_silver.svg",
-      aliases: ["49 north + silver mountain", "49 north silver mountain", "combo 49n silver"],
+      src: "assets/pass-family-icons/combo_49n_silver_logo.png",
+      aliases: ["49 north + silver combo pass", "49 north + silver mountain", "49 north silver mountain", "combo 49n silver"],
     },
+    { key: "alta_bird", alt: "Alta-Bird Pass", src: "assets/pass-family-icons/alta_bird_logo.svg", aliases: ["alta bird pass"] },
+    { key: "angel_fire_resort", alt: "Angel Fire Resort", src: "assets/pass-family-icons/angel_fire_resort_logo.png", aliases: ["angel fire resort season pass"] },
+    { key: "aspen_snowmass", alt: "Aspen Snowmass", src: "assets/pass-family-icons/aspen_snowmass_logo.png", aliases: ["aspen snowmass"] },
+    { key: "berkshire_summit", alt: "Berkshire Summit", src: "assets/pass-family-icons/berkshire_summit_logo.png", aliases: ["berkshire summit pass"] },
+    { key: "bogus_basin", alt: "Bogus Basin", src: "assets/pass-family-icons/bogus_basin_logo.png", aliases: ["bogus basin season pass"] },
+    { key: "bridger_bowl", alt: "Bridger Bowl", src: "assets/pass-family-icons/bridger_bowl_logo.ico", aliases: ["bridger bowl season pass"] },
+    { key: "bristol_mountain", alt: "Bristol Mountain", src: "assets/pass-family-icons/bristol_mountain_logo.png", aliases: ["bristol mountain season pass"] },
+    { key: "cali_pass", alt: "Cali Pass", src: "assets/pass-family-icons/cali_pass_logo.png", aliases: ["cali pass"] },
+    { key: "diamond_peak", alt: "Diamond Peak", src: "assets/pass-family-icons/diamond_peak_logo.png", aliases: ["diamond peak season pass"] },
+    { key: "discovery_ski_area", alt: "Discovery Ski Area", src: "assets/pass-family-icons/discovery_ski_area_logo.png", aliases: ["discovery ski area season pass"] },
     { key: "epic", alt: "Epic Pass", src: "assets/epic-pass-logo.svg", aliases: ["epic pass"] },
+    { key: "great_divide", alt: "Great Divide", src: "assets/pass-family-icons/great_divide_logo.png", aliases: ["great divide season pass"] },
+    { key: "gunstock", alt: "Gunstock", src: "assets/pass-family-icons/gunstock_logo.svg", aliases: ["gunstock season pass"] },
     { key: "ikon", alt: "Ikon Pass", src: "assets/ikon-pass-inc-logo-vector.svg", aliases: ["ikon pass"] },
     { key: "indy", alt: "Indy Pass", src: "assets/indy-pass-logo.svg", aliases: ["indy pass"] },
     {
       key: "labrador_song",
       alt: "Labrador / Song Pass",
-      src: "assets/pass-family-icons/labrador_song.svg",
-      aliases: ["labrador song pass", "labrador song individual pass", "labrador_song_individual_pass"],
+      src: "assets/pass-family-icons/labrador_song_logo.png",
+      aliases: ["labrador song pass", "labrador / song pass", "labrador song individual pass", "labrador_song_individual_pass"],
     },
-    { key: "legendary_pass", alt: "Legendary Pass", src: "assets/pass-family-icons/legendary_pass.svg", aliases: ["legendary pass"] },
-    { key: "michigan_pass", alt: "Michigan Pass", src: "assets/pass-family-icons/michigan_pass.svg", aliases: ["michigan pass"] },
+    { key: "legendary_pass", alt: "Legendary Pass", src: "assets/pass-family-icons/legendary_pass_logo.png", aliases: ["legendary pass"] },
+    { key: "lookout_pass", alt: "Lookout Pass", src: "assets/pass-family-icons/lookout_pass_logo.png", aliases: ["lookout pass season pass"] },
+    { key: "loveland", alt: "Loveland Ski Area", src: "assets/pass-family-icons/loveland_logo.png", aliases: ["loveland ski area season pass"] },
+    { key: "mad_river_glen", alt: "Mad River Glen", src: "assets/pass-family-icons/mad_river_glen_logo.png", aliases: ["mad river glen season pass"] },
+    { key: "maverick_mountain", alt: "Maverick Mountain", src: "assets/pass-family-icons/maverick_mountain_logo.jpg", aliases: ["maverick mountain season pass"] },
+    { key: "michigan_pass", alt: "Michigan Pass", src: "assets/pass-family-icons/michigan_pass_logo.png", aliases: ["michigan pass"] },
     {
       key: "michigan_white_gold",
       alt: "Michigan White Gold",
-      src: "assets/pass-family-icons/michigan_white_gold.svg",
-      aliases: ["michigan white gold pass"],
+      src: "assets/pass-family-icons/michigan_white_gold_logo.png",
+      aliases: ["michigan white gold card", "michigan white gold pass"],
     },
+    { key: "monarch_mountain", alt: "Monarch Mountain", src: "assets/pass-family-icons/monarch_mountain_logo.png", aliases: ["monarch mountain season pass"] },
     {
       key: "mountain_collective",
       alt: "Mountain Collective",
       src: "assets/mountain-collective-logo.svg",
       aliases: ["mountain collective", "mountain collective pass"],
     },
-    { key: "mt_hood_fusion", alt: "Mt. Hood Fusion Pass", src: "assets/pass-family-icons/mt_hood_fusion.svg", aliases: ["mt hood fusion", "mt hood fusion pass"] },
+    { key: "mountain_creek", alt: "Mountain Creek", src: "assets/pass-family-icons/mountain_creek_logo.png", aliases: ["mountain creek season pass"] },
+    { key: "mt_ashland", alt: "Mt. Ashland", src: "assets/pass-family-icons/mt_ashland_logo.gif", aliases: ["mt ashland season pass", "mount ashland season pass"] },
+    { key: "mt_baker", alt: "Mt. Baker", src: "assets/pass-family-icons/mt_baker_logo.png", aliases: ["mt baker season pass", "mount baker season pass"] },
+    { key: "mt_hood_fusion", alt: "Mt. Hood Fusion Pass", src: "assets/pass-family-icons/mt_hood_fusion_logo.svg", aliases: ["mt hood fusion", "mt hood fusion pass"] },
+    { key: "mt_rose", alt: "Mt. Rose", src: "assets/pass-family-icons/mt_rose_logo.jpg", aliases: ["mt rose season pass", "mount rose season pass"] },
+    { key: "mt_spokane", alt: "Mt. Spokane", src: "assets/pass-family-icons/mt_spokane_logo.png", aliases: ["mt spokane season pass", "mount spokane season pass"] },
     { key: "new_england_pass", alt: "New England Pass", src: "assets/pass-family-icons/new_england_pass.svg", aliases: ["new england pass"] },
-    { key: "no_boundaries", alt: "No Boundaries Pass", src: "assets/pass-family-icons/no_boundaries.svg", aliases: ["no boundaries pass"] },
-    { key: "ny_ski3", alt: "NY Ski3 Pass", src: "assets/pass-family-icons/ny_ski3.svg", aliases: ["ny ski3 pass", "ski3"] },
+    { key: "no_boundaries", alt: "No Boundaries Pass", src: "assets/pass-family-icons/no_boundaries_logo.webp", aliases: ["no boundaries pass"] },
+    { key: "ny_ski3", alt: "NY Ski3 Pass", src: "assets/pass-family-icons/ny_ski3_logo.png", aliases: ["ny ski3 pass", "ski3"] },
     {
       key: "peak_to_peak_pocono",
       alt: "Peak-to-Peak Poconos",
-      src: "assets/pass-family-icons/peak_to_peak_pocono.svg",
-      aliases: ["peak to peak poconos", "peak-to-peak poconos"],
+      src: "assets/pass-family-icons/peak_to_peak_pocono_logo.svg",
+      aliases: ["peak to peak poconos", "peak-to-peak poconos", "peak-to-peak poconos pass"],
     },
-    { key: "perfect_season", alt: "Perfect Season Pass", src: "assets/pass-family-icons/perfect_season.svg", aliases: ["perfect season pass"] },
-    { key: "power_pass", alt: "Power Pass", src: "assets/pass-family-icons/power_pass_logo.png", aliases: ["power pass"] },
+    { key: "pebble_creek", alt: "Pebble Creek", src: "assets/pass-family-icons/pebble_creek_logo.png", aliases: ["pebble creek season pass"] },
+    { key: "perfect_season", alt: "Perfect Season Pass", src: "assets/pass-family-icons/perfect_season_logo.jpg", aliases: ["perfect season pass"] },
+    { key: "pico_mountain", alt: "Pico Mountain", src: "assets/pass-family-icons/pico_mountain_logo.png", aliases: ["pico mountain season pass"] },
+    { key: "pine_creek", alt: "Pine Creek Ski Resort", src: "assets/pass-family-icons/pine_creek_logo.png", aliases: ["pine creek ski resort season pass"] },
+    { key: "plattekill", alt: "Plattekill", src: "assets/pass-family-icons/plattekill_logo.png", aliases: ["plattekill season pass"] },
+    { key: "power_pass", alt: "Power Pass", src: "assets/pass-family-icons/power_pass_logo.png", aliases: ["power pass", "power pass family"] },
+    { key: "red_river", alt: "Red River Ski Area", src: "assets/pass-family-icons/red_river_logo.png", aliases: ["red river ski area season pass"] },
+    { key: "showdown_montana", alt: "Showdown Montana", src: "assets/pass-family-icons/showdown_montana_logo.png", aliases: ["showdown montana season pass"] },
+    { key: "silverton_mountain", alt: "Silverton Mountain", src: "assets/pass-family-icons/silverton_mountain_logo.png", aliases: ["silverton mountain season pass"] },
     {
       key: "ski_brule_bohemia",
       alt: "Ski Brule / Bohemia Pass",
-      src: "assets/pass-family-icons/ski_brule_bohemia.svg",
+      src: "assets/pass-family-icons/ski_brule_bohemia_logo.png",
       aliases: ["ski brule bohemia pass", "ski brule / bohemia pass"],
     },
-    { key: "ski_vermont_4", alt: "Ski Vermont 4 Pass", src: "assets/pass-family-icons/ski_vermont_4.svg", aliases: ["ski vermont 4 pass"] },
+    { key: "ski_butternut", alt: "Ski Butternut", src: "assets/pass-family-icons/ski_butternut_logo.png", aliases: ["ski butternut season pass"] },
+    { key: "ski_cooper", alt: "Ski Cooper", src: "assets/pass-family-icons/ski_cooper_logo.png", aliases: ["ski cooper season pass"] },
+    { key: "ski_santa_fe", alt: "Ski Santa Fe", src: "assets/pass-family-icons/ski_santa_fe_logo.svg", aliases: ["ski santa fe season pass"] },
+    { key: "ski_vermont_4", alt: "Ski Vermont 4 Pass", src: "assets/pass-family-icons/ski_vermont_4_logo.png", aliases: ["ski vermont 4 pass"] },
     {
       key: "skiing_wisconsin_pass",
       alt: "Skiing Wisconsin Pass",
       src: "assets/pass-family-icons/skiwisconsin_logo.png",
       aliases: ["skiing wisconsin pass", "skiing wisconsin passport", "skiing_wisconsin_passport"],
     },
+    { key: "smugglers_notch", alt: "Smugglers' Notch", src: "assets/pass-family-icons/smugglers_notch_logo.ico", aliases: ["smugglers notch season pass"] },
+    { key: "sugar_mountain", alt: "Sugar Mountain", src: "assets/pass-family-icons/sugar_mountain_logo.png", aliases: ["sugar mountain season pass"] },
+    { key: "sundance", alt: "Sundance Mountain Resort", src: "assets/pass-family-icons/sundance_logo.png", aliases: ["sundance mountain resort season pass"] },
+    {
+      key: "the_summit_at_snoqualmie_alpental",
+      alt: "The Summit at Snoqualmie / Alpental",
+      src: "assets/pass-family-icons/summit_at_snoqualmie_logo.png",
+      aliases: ["the summit at snoqualmie / alpental season pass", "summit at snoqualmie alpental season pass"],
+    },
+    { key: "teton_pass", alt: "Teton Pass Ski Area", src: "assets/pass-family-icons/teton_pass_logo.png", aliases: ["teton pass ski area season pass"] },
+    { key: "turner_mountain", alt: "Turner Mountain", src: "assets/pass-family-icons/turner_mountain_logo.jpg", aliases: ["turner mountain season pass"] },
     {
       key: "uphill_new_england",
       alt: "Uphill New England Pass",
-      src: "assets/pass-family-icons/uphill_new_england.svg",
+      src: "assets/pass-family-icons/uphill_new_england_logo.png",
       aliases: ["uphill new england"],
     },
+    { key: "wachusett_mountain", alt: "Wachusett Mountain", src: "assets/pass-family-icons/wachusett_mountain_logo.png", aliases: ["wachusett mountain season pass"] },
+    { key: "warner_canyon", alt: "Warner Canyon", src: "assets/pass-family-icons/warner_canyon_logo.png", aliases: ["warner canyon season pass"] },
     {
       key: "white_mountain_sup",
       alt: "White Mountain Super Pass",
-      src: "assets/pass-family-icons/white_mountain_sup.svg",
+      src: "assets/pass-family-icons/white_mountain_super_pass_logo.png",
       aliases: ["white mountain super pass", "white mountain super", "white_mountain_super"],
     },
+    { key: "whitefish_mountain", alt: "Whitefish Mountain Resort", src: "assets/pass-family-icons/whitefish_mountain_logo.png", aliases: ["whitefish mountain resort season pass"] },
+    { key: "windham_mountain_club", alt: "Windham Mountain Club", src: "assets/pass-family-icons/windham_mountain_club_logo.png", aliases: ["windham mountain club season pass"] },
     {
       key: "wisconsin_multi_resort",
       alt: "Wisconsin Multi Resort",
       src: "assets/pass-family-icons/skiwisconsin_logo.png",
-      aliases: ["wisconsin multi resort", "wisconsin resorts multi pass"],
+      aliases: ["wisconsin multi resort", "wisconsin resorts multi pass", "wisconsin resorts multi-mountain pass"],
     },
-    { key: "wnep_ski_card", alt: "WNEP Ski Card", src: "assets/pass-family-icons/wnep_ski_card.svg", aliases: ["wnep ski card"] },
+    { key: "wnep_ski_card", alt: "WNEP Ski Card", src: "assets/pass-family-icons/wnep_ski_card_logo.png", aliases: ["wnep ski card"] },
+    { key: "wolf_creek", alt: "Wolf Creek Ski Area", src: "assets/pass-family-icons/wolf_creek_logo.png", aliases: ["wolf creek ski area season pass"] },
   ];
   const MULTI_MOUNTAIN_PASS_FAMILIES = new Set([
+    "alta_bird",
+    "aspen_snowmass",
     "combo_49n_silver",
     "epic",
     "ikon",
     "indy",
+    "labrador_song",
+    "michigan_pass",
+    "michigan_white_gold",
     "mountain_collective",
     "mt_hood_fusion",
     "new_england_pass",
+    "no_boundaries",
     "ny_ski3",
     "peak_to_peak_pocono",
     "power_pass",
+    "ski_brule_bohemia",
     "ski_vermont_4",
     "skiing_wisconsin_pass",
     "uphill_new_england",
+    "white_mountain_sup",
     "wisconsin_multi_resort",
+    "wnep_ski_card",
   ]);
   const PASS_PROVIDER_ICON_CONFIG = [
     { key: "stratton", alt: "Stratton", src: "assets/pass-family-icons/stratton_logo.svg", aliases: ["stratton mountain"] },
@@ -105,6 +158,18 @@
       map.set(icon.key, icon);
       (icon.aliases || []).forEach((alias) => {
         map.set(normalizePassFamilyKey(alias), icon);
+      });
+    });
+    return map;
+  })();
+  const PASS_FAMILY_ICON_BY_COMPACT_KEY = (() => {
+    const map = new Map();
+    PASS_FAMILY_ICON_CONFIG.forEach((icon) => {
+      [icon.key, ...(icon.aliases || [])].forEach((value) => {
+        const compact = compactPassFamilyKey(value);
+        if (compact && !map.has(compact)) {
+          map.set(compact, icon);
+        }
       });
     });
     return map;
@@ -401,6 +466,14 @@
       .replace(/[^a-z0-9]+/g, "_")
       .replace(/^_+|_+$/g, "")
       .replace(/_+/g, "_");
+  }
+
+  function compactPassFamilyKey(value) {
+    const ignored = new Set(["area", "club", "family", "mountain", "mtn", "pass", "passes", "resort", "resorts", "season", "ski", "the"]);
+    return normalizePassFamilyKey(value)
+      .split("_")
+      .filter((part) => part && !ignored.has(part))
+      .join("_");
   }
 
   function toBadgeLabel(value) {
@@ -1655,6 +1728,18 @@
       for (const [key, icon] of PASS_FAMILY_ICON_BY_KEY.entries()) {
         if (normalized.startsWith(`${key}_`) || key.startsWith(`${normalized}_`)) {
           return icon;
+        }
+      }
+
+      const compact = compactPassFamilyKey(candidate);
+      if (compact) {
+        const compactExact = PASS_FAMILY_ICON_BY_COMPACT_KEY.get(compact);
+        if (compactExact) return compactExact;
+
+        for (const [key, icon] of PASS_FAMILY_ICON_BY_COMPACT_KEY.entries()) {
+          if (compact.startsWith(`${key}_`) || key.startsWith(`${compact}_`)) {
+            return icon;
+          }
         }
       }
       return null;
