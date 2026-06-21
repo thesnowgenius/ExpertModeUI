@@ -11,7 +11,7 @@
   <title>Snow Genius — Expert Mode</title>
   <link rel="preload" href="resorts.json" as="fetch" crossorigin="anonymous">
   <script src="assets/bootstrap.js?v=20260226a"></script>
-  <link rel="stylesheet" href="assets/styles.css?v=20260617a" />
+  <link rel="stylesheet" href="assets/styles.css?v=20260620a" />
 </head>
 <body>
   <header class="hero hero-compact">
@@ -71,8 +71,24 @@
             <span class="field-label">Days</span>
             <input type="number" min="1" max="60" inputmode="numeric" class="input days-input" placeholder="Days" aria-label="Days requested" />
           </label>
-          <label class="chk"><input type="checkbox" class="no-weekends" /> Only Weekdays</label>
-          <label class="chk"><input type="checkbox" class="no-blackouts" /> No blackout dates</label>
+          <div class="constraint-control">
+            <label class="chk"><input type="checkbox" class="no-weekends" /> Only Weekdays</label>
+            <button
+              type="button"
+              class="tooltip-trigger"
+              aria-label="About Only Weekdays: Use this when you will ski this resort only Monday through Friday. Recommendations may include passes that are not valid on Saturdays or Sundays."
+            >?</button>
+            <span class="tooltip-content" role="tooltip">Use this when you will ski this resort only Monday through Friday. Recommendations may include passes that are not valid on Saturdays or Sundays.</span>
+          </div>
+          <div class="constraint-control">
+            <label class="chk"><input type="checkbox" class="no-blackouts" /> No blackout dates</label>
+            <button
+              type="button"
+              class="tooltip-trigger"
+              aria-label="About No blackout dates: Blackout dates are excluded dates, often holidays, when a pass cannot be used. Select this to show only options without blackout dates."
+            >?</button>
+            <span class="tooltip-content" role="tooltip">Blackout dates are excluded dates, often holidays, when a pass cannot be used. Select this to show only options without blackout dates.</span>
+          </div>
           <button type="button" class="btn subtle remove-resort">Remove resort</button>
         </div>
       </div>
@@ -115,6 +131,6 @@
 
   <footer class="footer">© Snow Genius</footer>
 
-  <script src="assets/script.js?v=20260617a" defer></script>
+  <script src="assets/script.js?v=20260620a" defer></script>
 </body>
 </html>

@@ -408,6 +408,75 @@ body{
 
 .chk input{accent-color:var(--brand-blue)}
 
+.constraint-control{
+  position:relative;
+  display:flex;
+  align-items:center;
+  flex:0 0 auto;
+  min-width:0;
+}
+
+.constraint-control .chk{
+  padding-right:35px;
+}
+
+.tooltip-trigger{
+  position:absolute;
+  right:8px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:22px;
+  height:22px;
+  padding:0;
+  border:1px solid rgba(10,132,255,.26);
+  border-radius:999px;
+  background:rgba(10,132,255,.08);
+  color:#145ca8;
+  font-family:inherit;
+  font-size:12px;
+  font-weight:700;
+  line-height:1;
+  cursor:help;
+}
+
+.tooltip-trigger:hover,
+.tooltip-trigger:focus-visible{
+  border-color:rgba(10,132,255,.48);
+  background:rgba(10,132,255,.14);
+}
+
+.tooltip-trigger:focus-visible{
+  outline:2px solid rgba(10,132,255,.5);
+  outline-offset:2px;
+}
+
+.tooltip-content{
+  position:absolute;
+  z-index:30;
+  left:50%;
+  bottom:calc(100% + 8px);
+  width:min(280px, calc(100vw - 32px));
+  padding:9px 11px;
+  border:1px solid rgba(23,52,89,.14);
+  border-radius:12px;
+  background:rgba(13,27,42,.96);
+  color:#fff;
+  box-shadow:var(--shadow-md);
+  font-size:12px;
+  line-height:1.4;
+  opacity:0;
+  pointer-events:none;
+  transform:translate(-50%, 4px);
+  transition:opacity .15s ease, transform .15s ease;
+}
+
+.constraint-control:hover .tooltip-content,
+.constraint-control:focus-within .tooltip-content{
+  opacity:1;
+  transform:translate(-50%, 0);
+}
+
 .btn{
   display:inline-flex;
   align-items:center;
@@ -720,6 +789,11 @@ body{
 
 .result-card{
   scroll-margin-top:18px;
+}
+
+.result-card:target{
+  border-color:rgba(10,132,255,.34);
+  box-shadow:0 10px 24px rgba(10,132,255,.12);
 }
 
 .alternative-result{
@@ -1063,6 +1137,12 @@ body{
   .days-field{flex:1 1 100%}
   .input, .select{flex:1 1 100%; font-size:16px}
   .chk{white-space:normal}
+  .constraint-control{
+    flex:1 1 100%;
+  }
+  .constraint-control .chk{
+    width:100%;
+  }
   .resort-submit-row{
     flex-wrap:wrap;
     justify-content:stretch;

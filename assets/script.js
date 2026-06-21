@@ -998,8 +998,24 @@
         <span class="field-label">Days</span>
         <input type="number" min="1" max="${MAX_DAYS_PER_RESORT}" inputmode="numeric" class="input days-input" placeholder="Days" aria-label="Days requested" />
       </label>
-      <label class="chk"><input type="checkbox" class="no-weekends" /> Only Weekdays</label>
-      <label class="chk"><input type="checkbox" class="no-blackouts" /> No blackout dates</label>
+      <div class="constraint-control">
+        <label class="chk"><input type="checkbox" class="no-weekends" /> Only Weekdays</label>
+        <button
+          type="button"
+          class="tooltip-trigger"
+          aria-label="About Only Weekdays: Use this when you will ski this resort only Monday through Friday. Recommendations may include passes that are not valid on Saturdays or Sundays."
+        >?</button>
+        <span class="tooltip-content" role="tooltip">Use this when you will ski this resort only Monday through Friday. Recommendations may include passes that are not valid on Saturdays or Sundays.</span>
+      </div>
+      <div class="constraint-control">
+        <label class="chk"><input type="checkbox" class="no-blackouts" /> No blackout dates</label>
+        <button
+          type="button"
+          class="tooltip-trigger"
+          aria-label="About No blackout dates: Blackout dates are excluded dates, often holidays, when a pass cannot be used. Select this to show only options without blackout dates."
+        >?</button>
+        <span class="tooltip-content" role="tooltip">Blackout dates are excluded dates, often holidays, when a pass cannot be used. Select this to show only options without blackout dates.</span>
+      </div>
       <button type="button" class="btn subtle remove-resort">Remove resort</button>
     `;
     wireResortRow(row);
@@ -2340,12 +2356,38 @@
     results.slice(0, TOP_COMPARISON_LIMIT).forEach((result, index) => {
       const card = document.createElement("a");
       card.className = "comparison-card";
-      card.href = `#recommendation-option-${index + 1}`;
-      card.addEventListener("click", () => {
-        const target = document.querySelector(card.getAttribute("href"));
+      const targetId = `recommendation-option-${index + 1}`;
+      card.href = `#${targetId}`;
+      card.setAttribute("aria-controls", targetId);
+      card.addEventListener("click", (event) => {
+        if (
+          event.defaultPrevented ||
+          event.button !== 0 ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey
+        ) {
+          return;
+        }
+
+        const target = document.getElementById(targetId);
+        if (!target) return;
+
+        event.preventDefault();
         if (target instanceof HTMLDetailsElement) {
           target.open = true;
         }
+
+        if (window.history?.pushState && window.location.hash !== card.hash) {
+          window.history.pushState(null, "", card.hash);
+        }
+
+        const reduceMotion = Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
+        target.scrollIntoView({
+          behavior: reduceMotion ? "auto" : "smooth",
+          block: "start",
+        });
       });
       if (index === 0) {
         card.classList.add("best");
