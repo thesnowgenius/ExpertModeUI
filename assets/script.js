@@ -1,5 +1,7 @@
 (() => {
   const DEFAULT_API_URL = "https://pass-picker-expert-mode-multi.onrender.com/score_pass";
+  const FEEDBACK_ENDPOINT = "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+  const SOLVER_VERSION = "expert-mode-v1";
   const ALLOWED_REMOTE_API_HOSTS = new Set(["pass-picker-expert-mode-multi.onrender.com"]);
   const PASS_FAMILY_ICON_CONFIG = [
     {
@@ -259,8 +261,27 @@
   let typeaheadCounter = 0;
   let sharedItineraryHandled = false;
   let lastSubmittedPayload = null;
+  let lastExpertModeInput = null;
+  let lastExpertModeOutput = null;
+  let feedbackSessionId = createUniqueId();
+  let feedbackSubmitted = false;
   let shareFeedbackTimeoutId = 0;
   let inMemoryTrackingSessionId = "";
+
+  function createUniqueId() {
+    if (typeof window.crypto?.randomUUID === "function") {
+      return window.crypto.randomUUID();
+    }
+    if (typeof window.crypto?.getRandomValues === "function") {
+      const bytes = new Uint8Array(16);
+      window.crypto.getRandomValues(bytes);
+      bytes[6] = (bytes[6] & 0x0f) | 0x40;
+      bytes[8] = (bytes[8] & 0x3f) | 0x80;
+      const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0"));
+      return `${hex.slice(0, 4).join("")}-${hex.slice(4, 6).join("")}-${hex.slice(6, 8).join("")}-${hex.slice(8, 10).join("")}-${hex.slice(10).join("")}`;
+    }
+    return `sg-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
 
   function postHeight() {
     const body = document.body;
@@ -791,6 +812,13 @@
     queueHeightPost();
   }
 
+  function resetFeedbackCapture() {
+    lastExpertModeInput = null;
+    lastExpertModeOutput = null;
+    feedbackSessionId = createUniqueId();
+    feedbackSubmitted = false;
+  }
+
   function setBusy(isBusy) {
     if (els.submit) {
       els.submit.disabled = isBusy;
@@ -1292,6 +1320,7 @@
 
   function resetForm() {
     resetShareButtonFeedback();
+    resetFeedbackCapture();
     els.ridersWrap.replaceChildren();
     els.resortsWrap.replaceChildren();
     els.ridersWrap.appendChild(createRiderRow());
@@ -2512,7 +2541,170 @@
       els.results.appendChild(card);
     });
 
+    renderFeedbackBox();
     revealResults();
+  }
+
+  function extractRecommendedPasses(output) {
+    if (!output || typeof output !== "object") return [];
+    if (Array.isArray(output.recommended_passes)) return output.recommended_passes;
+    if (Array.isArray(output.passes)) return output.passes;
+    if (Array.isArray(output.selected_passes)) return output.selected_passes;
+    if (output.recommendation) return [output.recommendation];
+    if (output.best_option) return [output.best_option];
+
+    const firstResult = Array.isArray(output.results) ? output.results[0] : null;
+    if (Array.isArray(firstResult?.passes)) return firstResult.passes;
+    if (firstResult) return [firstResult];
+
+    if (Array.isArray(output.ranked_passes)) return output.ranked_passes;
+    return [];
+  }
+
+  function configuredFeedbackEndpoint() {
+    const devEndpoint = isDevMode
+      ? new URLSearchParams(window.location.search || "").get("feedbackEndpoint") || ""
+      : "";
+    const runtimeEndpoint = typeof window.SNOW_GENIUS_FEEDBACK_ENDPOINT === "string"
+      ? window.SNOW_GENIUS_FEEDBACK_ENDPOINT
+      : "";
+    const candidate = (runtimeEndpoint || devEndpoint || FEEDBACK_ENDPOINT).trim();
+    if (!candidate || candidate === "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
+      throw new Error("Feedback endpoint is not configured.");
+    }
+
+    const endpoint = new URL(candidate);
+    const isGoogleAppsScript = (
+      endpoint.protocol === "https:" &&
+      endpoint.hostname === "script.google.com" &&
+      endpoint.pathname.startsWith("/macros/s/")
+    );
+    const isLocalDevEndpoint = isDevMode && isLocalDevHost(endpoint.hostname);
+    if (!isGoogleAppsScript && !isLocalDevEndpoint) {
+      throw new Error("Feedback endpoint must be a deployed Google Apps Script web app URL.");
+    }
+    return endpoint.toString();
+  }
+
+  function setFeedbackControlsDisabled(disabled) {
+    ["feedback-yes", "feedback-no", "feedback-submit"].forEach((id) => {
+      const control = document.getElementById(id);
+      if (control instanceof HTMLButtonElement) {
+        control.disabled = disabled;
+      }
+    });
+  }
+
+  function renderFeedbackBox() {
+    if (!els.results || !lastExpertModeInput || !lastExpertModeOutput) {
+      console.warn("Feedback box skipped: missing results or captured request data.");
+      return;
+    }
+
+    document.getElementById("feedback-box")?.remove();
+    const feedbackBox = document.createElement("div");
+    feedbackBox.id = "feedback-box";
+    feedbackBox.className = "sg-feedback-box";
+    feedbackBox.innerHTML = `
+      <div class="sg-feedback-card">
+        <h3>Did Snow Genius help?</h3>
+        <p>Your feedback helps us tune Expert Mode for real riders.</p>
+        <div class="sg-feedback-actions">
+          <button id="feedback-yes" class="btn sg-feedback-choice" type="button">👍 Yes</button>
+          <button id="feedback-no" class="btn sg-feedback-choice" type="button" aria-expanded="false" aria-controls="feedback-details">👎 No</button>
+        </div>
+        <div id="feedback-details" class="sg-feedback-details" hidden>
+          <label class="sg-feedback-field" for="feedback-reason">
+            <span>What seems off?</span>
+            <select id="feedback-reason" class="select">
+              <option value="">Select one</option>
+              <option value="expected_different_pass">Expected a different pass</option>
+              <option value="price_seems_wrong">Price seems wrong</option>
+              <option value="resort_access_seems_wrong">Resort access seems wrong</option>
+              <option value="blackout_or_weekend_issue">Blackout/weekend issue</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label class="sg-feedback-field" for="feedback-comment">
+            <span>Anything else? Optional.</span>
+            <textarea id="feedback-comment" class="input" rows="4" maxlength="2000"></textarea>
+          </label>
+          <label class="sg-feedback-field" for="feedback-email">
+            <span>Email, optional.</span>
+            <input id="feedback-email" class="input" type="email" inputmode="email" autocomplete="email" maxlength="254">
+          </label>
+          <button id="feedback-submit" class="btn primary" type="button">Submit Feedback</button>
+        </div>
+        <p id="feedback-status" class="sg-feedback-status" role="status" aria-live="polite"></p>
+      </div>
+    `;
+    els.results.appendChild(feedbackBox);
+
+    document.getElementById("feedback-yes")?.addEventListener("click", () => {
+      submitFeedback("positive");
+    });
+    document.getElementById("feedback-no")?.addEventListener("click", () => {
+      const details = document.getElementById("feedback-details");
+      const noButton = document.getElementById("feedback-no");
+      if (details) details.hidden = false;
+      noButton?.setAttribute("aria-expanded", "true");
+      document.getElementById("feedback-reason")?.focus();
+      queueHeightPost();
+    });
+    document.getElementById("feedback-submit")?.addEventListener("click", () => {
+      submitFeedback("negative");
+    });
+  }
+
+  async function submitFeedback(feedbackType) {
+    if (feedbackSubmitted || !lastExpertModeInput || !lastExpertModeOutput) return;
+
+    const status = document.getElementById("feedback-status");
+    const reasonEl = document.getElementById("feedback-reason");
+    const commentEl = document.getElementById("feedback-comment");
+    const emailEl = document.getElementById("feedback-email");
+    if (feedbackType === "negative" && emailEl instanceof HTMLInputElement && !emailEl.checkValidity()) {
+      emailEl.reportValidity();
+      return;
+    }
+
+    const payload = {
+      session_id: feedbackSessionId,
+      timestamp: new Date().toISOString(),
+      feedback_type: feedbackType,
+      reason: feedbackType === "negative" && reasonEl instanceof HTMLSelectElement ? reasonEl.value : "",
+      comment: feedbackType === "negative" && commentEl instanceof HTMLTextAreaElement ? commentEl.value.trim() : "",
+      user_email: feedbackType === "negative" && emailEl instanceof HTMLInputElement ? emailEl.value.trim() : "",
+      input_payload: lastExpertModeInput,
+      output_payload: lastExpertModeOutput,
+      recommended_passes: extractRecommendedPasses(lastExpertModeOutput),
+      solver_version: SOLVER_VERSION,
+      user_agent: navigator.userAgent,
+      page_url: window.location.href,
+    };
+
+    try {
+      const endpoint = configuredFeedbackEndpoint();
+      if (status) status.textContent = "Submitting feedback...";
+      setFeedbackControlsDisabled(true);
+      await fetch(endpoint, {
+        method: "POST",
+        mode: "no-cors",
+        credentials: "omit",
+        referrerPolicy: "no-referrer",
+        cache: "no-store",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload),
+      });
+      feedbackSubmitted = true;
+      if (status) status.textContent = "Thanks — feedback received.";
+    } catch (error) {
+      console.error("Feedback submit failed", error);
+      if (status) status.textContent = "Feedback could not be submitted. Please try again.";
+      setFeedbackControlsDisabled(false);
+    } finally {
+      queueHeightPost();
+    }
   }
 
   async function submitRequest(options = {}) {
@@ -2528,6 +2720,7 @@
     els.rawRequest.textContent = JSON.stringify(payload, null, 2);
 
     if (errors.length) {
+      resetFeedbackCapture();
       showError(errors);
       clearResults();
       setStatus("Validation failed.");
@@ -2539,6 +2732,8 @@
       return;
     }
 
+    resetFeedbackCapture();
+    lastExpertModeInput = payload;
     setBusy(true);
     setStatus("Submitting request...");
 
@@ -2573,11 +2768,13 @@
         throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
       }
 
+      lastExpertModeOutput = data;
       renderResults(data, payload);
       showNotice("");
       setStatus("Results updated.");
       scrollToResults();
     } catch (error) {
+      lastExpertModeOutput = null;
       const message =
         error && typeof error === "object" && "name" in error && error.name === "AbortError"
           ? `Request timed out after ${Math.round(REQUEST_TIMEOUT_MS / 1000)}s`
