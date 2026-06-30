@@ -1,6 +1,6 @@
 (() => {
   const DEFAULT_API_URL = "https://pass-picker-expert-mode-multi.onrender.com/score_pass";
-  const FEEDBACK_ENDPOINT = "PASTE_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE";
+  const FEEDBACK_ENDPOINT = "https://script.google.com/macros/s/AKfycbwt-xAh5hGm9JZEfMXnQnyF3cHICjrKI7JkcDs4hCL-XtiOSOVNqxi17fCnLFgVmzpo/exec";
   const SOLVER_VERSION = "expert-mode-v1";
   const ALLOWED_REMOTE_API_HOSTS = new Set(["pass-picker-expert-mode-multi.onrender.com"]);
   const PASS_FAMILY_ICON_CONFIG = [
