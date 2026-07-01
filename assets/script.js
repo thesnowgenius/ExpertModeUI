@@ -1887,6 +1887,8 @@
       link.target = "_blank";
       link.rel = "noopener noreferrer";
       link.className = "pass-name-link";
+      link.dataset.passFamily = getPassFamily(passItem);
+      link.dataset.passName = String(passName);
       link.textContent = passName;
       label.appendChild(link);
     } else {
@@ -2801,6 +2803,22 @@
   }
 
   function bindEvents() {
+    document.addEventListener("click", (event) => {
+      const target = event.target;
+      const link = target instanceof Element ? target.closest(".pass-name-link") : null;
+      if (!(link instanceof HTMLAnchorElement) || typeof window.gtag !== "function") {
+        return;
+      }
+
+      window.gtag("event", "pass_family_click", {
+        pass_family: link.dataset.passFamily || "",
+        pass_name: link.dataset.passName || link.textContent.trim(),
+        outbound_url: link.href,
+        page_path: window.location.pathname,
+        link_text: link.textContent.trim(),
+      });
+    });
+
     els.addRider?.addEventListener("click", () => {
       const count = els.ridersWrap.querySelectorAll(".rider-row").length;
       if (count >= MAX_RIDERS) {
