@@ -1,8 +1,9 @@
 (() => {
   const DEFAULT_API_URL = "https://pass-picker-expert-mode-multi.onrender.com/score_pass";
   const FEEDBACK_ENDPOINT = "https://script.google.com/macros/s/AKfycbwt-xAh5hGm9JZEfMXnQnyF3cHICjrKI7JkcDs4hCL-XtiOSOVNqxi17fCnLFgVmzpo/exec";
-  const PARENT_ORIGIN = "https://snow-genius.com";
   const SOLVER_VERSION = "expert-mode-v1";
+  const outboundAnalytics = window.SnowGeniusOutboundAnalytics;
+  const SNOW_GENIUS_PARENT_ORIGIN = outboundAnalytics?.PARENT_ORIGIN || "https://www.snow-genius.com";
   const ALLOWED_REMOTE_API_HOSTS = new Set(["pass-picker-expert-mode-multi.onrender.com"]);
   const PASS_FAMILY_ICON_CONFIG = [
     {
@@ -303,7 +304,7 @@
     }
 
     lastPostedHeight = height;
-    window.parent.postMessage({ type: "setHeight", height }, "*");
+    window.parent.postMessage({ type: "setHeight", height }, SNOW_GENIUS_PARENT_ORIGIN);
   }
 
   function queueHeightPost() {
@@ -1885,7 +1886,7 @@
     container.appendChild(logo);
   }
 
-  function appendPassRow(container, passItem) {
+  function appendPassRow(container, passItem, recommendationContext = {}) {
     const row = document.createElement("div");
     row.className = "pass-item";
 
@@ -1905,6 +1906,12 @@
       link.dataset.passFamily = getPassFamily(passItem);
       link.dataset.passName = String(passName);
       link.dataset.destinationUrl = getPassDestinationUrl(passItem, passUrl);
+      link.dataset.recommendedRank = recommendationContext.recommendedRank ?? "";
+      link.dataset.estimatedCost = recommendationContext.estimatedCost ?? "";
+      link.dataset.estimatedSavings = recommendationContext.estimatedSavings ?? "";
+      link.dataset.tripCount = recommendationContext.tripCount ?? "";
+      link.dataset.recommendationId = recommendationContext.recommendationId || "unknown";
+      link.dataset.solverVersion = recommendationContext.solverVersion || SOLVER_VERSION;
       link.textContent = passName;
       label.appendChild(link);
     } else {
@@ -1920,7 +1927,7 @@
     container.appendChild(row);
   }
 
-  function renderPassList(passes) {
+  function renderPassList(passes, recommendationContext = {}) {
     const wrapper = document.createElement("div");
     wrapper.className = "pass-list";
 
@@ -1967,13 +1974,13 @@
             familySection.appendChild(familyHeading);
 
             (byFamily.get(familyName) || []).forEach((passItem) => {
-              appendPassRow(familySection, passItem);
+              appendPassRow(familySection, passItem, recommendationContext);
             });
 
             section.appendChild(familySection);
           });
         } else {
-          riderItems.forEach((passItem) => appendPassRow(section, passItem));
+          riderItems.forEach((passItem) => appendPassRow(section, passItem, recommendationContext));
         }
 
         wrapper.appendChild(section);
@@ -2046,6 +2053,13 @@
 
   function getResultPrice(result) {
     return Number(result?.price ?? result?.total_cost ?? 0);
+  }
+
+  function getResultEstimatedSavings(result) {
+    const raw = result?.estimated_savings ?? result?.savings ?? result?.total_savings;
+    if (raw === null || raw === undefined || raw === "") return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
   }
 
   function getResultPassCount(result) {
@@ -2476,7 +2490,7 @@
     return panel;
   }
 
-  function renderResults(data, payload = lastSubmittedPayload) {
+  function renderResults(data, payload = lastSubmittedPayload, recommendationId = "unknown") {
     clearResults();
     const resultOptions = normalizeResultOptions(data);
     if (!data || !resultOptions.length) {
@@ -2495,6 +2509,15 @@
 
     resultOptions.forEach((result, index) => {
       const isRecommended = index === 0;
+      const parsedRank = Number(result?.__rank);
+      const recommendationContext = {
+        recommendedRank: Number.isInteger(parsedRank) && parsedRank > 0 ? parsedRank : index + 1,
+        estimatedCost: getResultPrice(result),
+        estimatedSavings: getResultEstimatedSavings(result),
+        tripCount: requestedDayCount(payload) || null,
+        recommendationId,
+        solverVersion: SOLVER_VERSION,
+      };
       const card = document.createElement(isRecommended ? "section" : "details");
       card.className = isRecommended ? "result-card recommended-result" : "result-card alternative-result";
       card.id = `recommendation-option-${index + 1}`;
@@ -2537,7 +2560,7 @@
         card.appendChild(disclosure);
       }
 
-      content.appendChild(renderPassList(getResultPasses(result)));
+      content.appendChild(renderPassList(getResultPasses(result), recommendationContext));
 
       const explanation = renderRecommendationExplanation(result, index, resultOptions, payload);
       if (explanation) {
@@ -2786,8 +2809,9 @@
         throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
       }
 
+      const recommendationId = outboundAnalytics?.createRecommendationId?.() || createUniqueId();
       lastExpertModeOutput = data;
-      renderResults(data, payload);
+      renderResults(data, payload, recommendationId);
       showNotice("");
       setStatus("Results updated.");
       scrollToResults();
@@ -2826,21 +2850,7 @@
         return;
       }
 
-      const linkText = link.textContent.trim();
-      try {
-        window.parent.postMessage(
-          {
-            type: "snow_genius_outbound_click",
-            pass_family: link.dataset.passFamily || "",
-            pass_name: link.dataset.passName || linkText,
-            destination_url: link.dataset.destinationUrl || link.href,
-            link_text: linkText,
-          },
-          PARENT_ORIGIN,
-        );
-      } catch (_error) {
-        // Analytics must never interrupt the link's default navigation.
-      }
+      outboundAnalytics?.handleOutboundPassClick?.(event, link, { isDevMode });
     });
 
     els.addRider?.addEventListener("click", () => {
