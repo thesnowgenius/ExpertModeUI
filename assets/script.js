@@ -1,6 +1,7 @@
 (() => {
   const DEFAULT_API_URL = "https://pass-picker-expert-mode-multi.onrender.com/score_pass";
   const FEEDBACK_ENDPOINT = "https://script.google.com/macros/s/AKfycbwt-xAh5hGm9JZEfMXnQnyF3cHICjrKI7JkcDs4hCL-XtiOSOVNqxi17fCnLFgVmzpo/exec";
+  const PARENT_ORIGIN = "https://snow-genius.com";
   const SOLVER_VERSION = "expert-mode-v1";
   const ALLOWED_REMOTE_API_HOSTS = new Set(["pass-picker-expert-mode-multi.onrender.com"]);
   const PASS_FAMILY_ICON_CONFIG = [
@@ -1761,6 +1762,20 @@
     return "";
   }
 
+  function getPassDestinationUrl(passItem, fallbackUrl) {
+    const text = String(passItem?.destination_url || fallbackUrl || "").trim();
+    if (!text) return "";
+    try {
+      const parsed = new URL(text);
+      if (parsed.protocol === "https:" || parsed.protocol === "http:") {
+        return parsed.toString();
+      }
+    } catch (_error) {
+      return "";
+    }
+    return "";
+  }
+
   function resolvePassFamilyIcon(passItem, passSearchText) {
     function findFamilyIconByCandidate(candidate) {
       const normalized = normalizePassFamilyKey(candidate);
@@ -1889,6 +1904,7 @@
       link.className = "pass-name-link";
       link.dataset.passFamily = getPassFamily(passItem);
       link.dataset.passName = String(passName);
+      link.dataset.destinationUrl = getPassDestinationUrl(passItem, passUrl);
       link.textContent = passName;
       label.appendChild(link);
     } else {
@@ -2806,17 +2822,25 @@
     document.addEventListener("click", (event) => {
       const target = event.target;
       const link = target instanceof Element ? target.closest(".pass-name-link") : null;
-      if (!(link instanceof HTMLAnchorElement) || typeof window.gtag !== "function") {
+      if (!(link instanceof HTMLAnchorElement)) {
         return;
       }
 
-      window.gtag("event", "pass_family_click", {
-        pass_family: link.dataset.passFamily || "",
-        pass_name: link.dataset.passName || link.textContent.trim(),
-        outbound_url: link.href,
-        page_path: window.location.pathname,
-        link_text: link.textContent.trim(),
-      });
+      const linkText = link.textContent.trim();
+      try {
+        window.parent.postMessage(
+          {
+            type: "snow_genius_outbound_click",
+            pass_family: link.dataset.passFamily || "",
+            pass_name: link.dataset.passName || linkText,
+            destination_url: link.dataset.destinationUrl || link.href,
+            link_text: linkText,
+          },
+          PARENT_ORIGIN,
+        );
+      } catch (_error) {
+        // Analytics must never interrupt the link's default navigation.
+      }
     });
 
     els.addRider?.addEventListener("click", () => {
