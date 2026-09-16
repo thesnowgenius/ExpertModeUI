@@ -2,6 +2,7 @@
   const DEFAULT_API_URL = "https://pass-picker-expert-mode-multi.onrender.com/score_pass";
   const FEEDBACK_ENDPOINT = "https://script.google.com/macros/s/AKfycbwt-xAh5hGm9JZEfMXnQnyF3cHICjrKI7JkcDs4hCL-XtiOSOVNqxi17fCnLFgVmzpo/exec";
   const SOLVER_VERSION = "expert-mode-v1";
+  const funnelAnalytics = window.SnowGeniusFunnelAnalytics;
   const outboundAnalytics = window.SnowGeniusOutboundAnalytics;
   const SNOW_GENIUS_PARENT_ORIGIN = outboundAnalytics?.PARENT_ORIGIN || "https://www.snow-genius.com";
   const ALLOWED_REMOTE_API_HOSTS = new Set(["pass-picker-expert-mode-multi.onrender.com"]);
@@ -217,6 +218,14 @@
   const SHARE_COPY_FEEDBACK_MS = 2200;
   const TOP_COMPARISON_LIMIT = 3;
   const VALID_RIDER_CATEGORIES = new Set(["military", "student", "first_responder", "medical", "uphill"]);
+  const EXPERT_MODE_START_CONTROL_SELECTOR = [
+    ".rider-age",
+    ".rider-category",
+    ".resort-input",
+    ".days-input",
+    ".no-weekends",
+    ".no-blackouts",
+  ].join(", ");
   const RESORT_ALIAS_LEADING_WORDS = new Set(["mount", "mt", "ski", "the"]);
   const isDevMode = (() => {
     if (typeof window.__SNOW_GENIUS_DEV_MODE__ === "boolean") {
@@ -230,6 +239,10 @@
       /(?:^|[?&=])devmode(?:[=&]|$)/i.test(window.location.search || "")
     );
   })();
+  const trackExpertModeStart = funnelAnalytics?.createExpertModeStartTracker?.({
+    isDevMode,
+    solverVersion: SOLVER_VERSION,
+  }) || (() => ({ sent: false, skipped: true }));
   const DEFAULT_RESOLVED_API_URL = resolveApiUrl(window.API_URL, DEFAULT_API_URL);
   let currentApiUrl = loadStoredApiUrl(DEFAULT_RESOLVED_API_URL);
 
@@ -1722,6 +1735,7 @@
 
     try {
       applyShareState(shared.state, { autoRun: shared.autoRun });
+      trackExpertModeStart("shared_link");
       window.requestAnimationFrame(scrollToPlanner);
       if (shared.autoRun) {
         submitRequest({ fromSharedLink: true }).catch((error) => {
@@ -2863,6 +2877,7 @@
       showError("");
       showNotice("");
       els.ridersWrap.appendChild(createRiderRow());
+      trackExpertModeStart("manual");
       updateAllRowControls();
     });
 
@@ -2876,6 +2891,7 @@
       showError("");
       showNotice("");
       els.resortsWrap.appendChild(createResortRow());
+      trackExpertModeStart("manual");
       updateAllRowControls();
     });
 
@@ -2889,6 +2905,9 @@
     els.submit?.addEventListener("click", () => submitRequest());
     els.appMain?.addEventListener("input", (event) => {
       const control = event.target;
+      if (control instanceof HTMLElement && control.matches(EXPERT_MODE_START_CONTROL_SELECTOR)) {
+        trackExpertModeStart("manual");
+      }
       if (control instanceof HTMLElement && control.matches(".input, .select")) {
         control.classList.remove("invalid");
         control.removeAttribute("aria-invalid");
@@ -2896,6 +2915,9 @@
     });
     els.appMain?.addEventListener("change", (event) => {
       const control = event.target;
+      if (control instanceof HTMLElement && control.matches(EXPERT_MODE_START_CONTROL_SELECTOR)) {
+        trackExpertModeStart("manual");
+      }
       if (control instanceof HTMLElement && control.matches(".input, .select")) {
         control.classList.remove("invalid");
         control.removeAttribute("aria-invalid");
