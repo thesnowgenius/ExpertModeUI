@@ -13,17 +13,27 @@
 
   const PARENT_ORIGIN = "https://www.snow-genius.com";
   const MESSAGE_TYPE = "snow_genius_funnel_event";
-  const EVENT_NAME = "expert_mode_start";
+  const START_EVENT_NAME = "expert_mode_start";
+  const SUBMIT_EVENT_NAME = "expert_mode_submit";
+  const EVENT_NAME = START_EVENT_NAME;
   const ENTRY_METHODS = new Set(["manual", "shared_link"]);
 
   function normalizeEntryMethod(value) {
     return ENTRY_METHODS.has(value) ? value : "manual";
   }
 
+  function normalizeAggregateCount(value) {
+    if (value === null || value === undefined || value === "") {
+      return null;
+    }
+    const number = Number(value);
+    return Number.isInteger(number) && number >= 0 ? number : null;
+  }
+
   function buildExpertModeStartMessage(details = {}) {
     return {
       type: MESSAGE_TYPE,
-      event_name: EVENT_NAME,
+      event_name: START_EVENT_NAME,
       tool: "expert_mode",
       environment: "production",
       solver_version: details.solverVersion || "unknown",
@@ -31,8 +41,21 @@
     };
   }
 
-  function sendExpertModeStart(details = {}, options = {}) {
-    const message = buildExpertModeStartMessage(details);
+  function buildExpertModeSubmitMessage(details = {}) {
+    return {
+      type: MESSAGE_TYPE,
+      event_name: SUBMIT_EVENT_NAME,
+      tool: "expert_mode",
+      environment: "production",
+      solver_version: details.solverVersion || "unknown",
+      entry_method: normalizeEntryMethod(details.entryMethod),
+      rider_count: normalizeAggregateCount(details.riderCount),
+      resort_count: normalizeAggregateCount(details.resortCount),
+      requested_days: normalizeAggregateCount(details.requestedDays),
+    };
+  }
+
+  function sendMessage(message, options = {}) {
     const currentWindow = options.currentWindow || root;
     const parentWindow = options.parentWindow || root?.parent;
 
@@ -50,6 +73,14 @@
       }
       return { sent: false, message };
     }
+  }
+
+  function sendExpertModeStart(details = {}, options = {}) {
+    return sendMessage(buildExpertModeStartMessage(details), options);
+  }
+
+  function sendExpertModeSubmit(details = {}, options = {}) {
+    return sendMessage(buildExpertModeSubmitMessage(details), options);
   }
 
   function createExpertModeStartTracker(options = {}) {
@@ -74,9 +105,14 @@
     EVENT_NAME,
     MESSAGE_TYPE,
     PARENT_ORIGIN,
+    START_EVENT_NAME,
+    SUBMIT_EVENT_NAME,
     buildExpertModeStartMessage,
+    buildExpertModeSubmitMessage,
     createExpertModeStartTracker,
+    normalizeAggregateCount,
     normalizeEntryMethod,
     sendExpertModeStart,
+    sendExpertModeSubmit,
   });
 });

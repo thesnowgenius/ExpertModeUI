@@ -36,6 +36,57 @@ test("unknown entry methods normalize to manual", () => {
   assert.equal(message.entry_method, "manual");
 });
 
+test("expert mode submit uses the fixed parent origin and aggregate-only payload", () => {
+  const calls = [];
+  const parentWindow = {
+    postMessage(message, origin) {
+      calls.push({ message, origin });
+    },
+  };
+
+  analytics.sendExpertModeSubmit(
+    {
+      entryMethod: "shared_link",
+      resortCount: 3,
+      riderCount: 2,
+      requestedDays: 8,
+      solverVersion: "expert-mode-v1",
+    },
+    { currentWindow: {}, parentWindow },
+  );
+
+  assert.deepEqual(calls, [{
+    origin: "https://www.snow-genius.com",
+    message: {
+      type: "snow_genius_funnel_event",
+      event_name: "expert_mode_submit",
+      tool: "expert_mode",
+      environment: "production",
+      solver_version: "expert-mode-v1",
+      entry_method: "shared_link",
+      rider_count: 2,
+      resort_count: 3,
+      requested_days: 8,
+    },
+  }]);
+});
+
+test("submit aggregate counts reject invalid or identifying values", () => {
+  const message = analytics.buildExpertModeSubmitMessage({
+    riderCount: null,
+    resortCount: "not-a-count",
+    requestedDays: 2.5,
+    ages: [34],
+    resorts: ["example-resort"],
+  });
+
+  assert.equal(message.rider_count, null);
+  assert.equal(message.resort_count, null);
+  assert.equal(message.requested_days, null);
+  assert.equal("ages" in message, false);
+  assert.equal("resorts" in message, false);
+});
+
 test("the start tracker emits at most once per page load", () => {
   const calls = [];
   const tracker = analytics.createExpertModeStartTracker({

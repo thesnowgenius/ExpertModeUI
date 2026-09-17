@@ -239,7 +239,7 @@
       /(?:^|[?&=])devmode(?:[=&]|$)/i.test(window.location.search || "")
     );
   })();
-  const trackExpertModeStart = funnelAnalytics?.createExpertModeStartTracker?.({
+  const emitExpertModeStartOnce = funnelAnalytics?.createExpertModeStartTracker?.({
     isDevMode,
     solverVersion: SOLVER_VERSION,
   }) || (() => ({ sent: false, skipped: true }));
@@ -275,9 +275,28 @@
   let resortByNormalizedSearchPhrase = new Map();
   let typeaheadCounter = 0;
   let sharedItineraryHandled = false;
+  let expertModeEntryMethod = "manual";
   let lastSubmittedPayload = null;
   let lastExpertModeInput = null;
   let lastExpertModeOutput = null;
+
+  function trackExpertModeStart(entryMethod = "manual") {
+    const normalizedEntryMethod = funnelAnalytics?.normalizeEntryMethod?.(entryMethod) || "manual";
+    if (normalizedEntryMethod === "shared_link") {
+      expertModeEntryMethod = "shared_link";
+    }
+    return emitExpertModeStartOnce(normalizedEntryMethod);
+  }
+
+  function trackExpertModeSubmit(payload) {
+    return funnelAnalytics?.sendExpertModeSubmit?.({
+      entryMethod: expertModeEntryMethod,
+      resortCount: Array.isArray(payload?.resorts) ? payload.resorts.length : null,
+      riderCount: Array.isArray(payload?.riders) ? payload.riders.length : null,
+      requestedDays: requestedDayCount(payload),
+      solverVersion: SOLVER_VERSION,
+    }, { isDevMode }) || { sent: false, skipped: true };
+  }
   let feedbackSessionId = createUniqueId();
   let feedbackSubmitted = false;
   let shareFeedbackTimeoutId = 0;
@@ -2796,6 +2815,7 @@
     try {
       const controller = new AbortController();
       timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      trackExpertModeSubmit(payload);
       const response = await fetch(currentApiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
