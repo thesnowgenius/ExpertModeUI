@@ -85,6 +85,18 @@
     };
   }
 
+  function hasRecommendedResult(resultOptions) {
+    if (!Array.isArray(resultOptions) || !resultOptions.length) return false;
+
+    const recommendedResult = resultOptions[0];
+    const explicitPassCount = Number(recommendedResult?.pass_count);
+    if (Number.isInteger(explicitPassCount) && explicitPassCount >= 0) {
+      return explicitPassCount > 0;
+    }
+
+    return Array.isArray(recommendedResult?.passes) && recommendedResult.passes.length > 0;
+  }
+
   function sendMessage(message, options = {}) {
     const currentWindow = options.currentWindow || root;
     const parentWindow = options.parentWindow || root?.parent;
@@ -152,6 +164,7 @@
     buildExpertModeResultMessage,
     buildExpertModeSubmitMessage,
     createExpertModeStartTracker,
+    hasRecommendedResult,
     normalizeAggregateCount,
     normalizeEntryMethod,
     sendExpertModeNoResult,

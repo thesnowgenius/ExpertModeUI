@@ -190,6 +190,27 @@ test("no-result messages omit itinerary and response details", () => {
   assert.equal("response" in message, false);
 });
 
+test("a zero-pass fallback is classified as no result", () => {
+  assert.equal(analytics.hasRecommendedResult([{
+    pass_count: 0,
+    passes: [],
+    explanation: "No priced pass or pass combo available",
+  }]), false);
+});
+
+test("a positive recommended pass count is classified as a result", () => {
+  assert.equal(analytics.hasRecommendedResult([{
+    pass_count: 1,
+    passes: [{ pass_id: "example-pass" }],
+  }]), true);
+});
+
+test("recommended passes are detected when an explicit count is absent", () => {
+  assert.equal(analytics.hasRecommendedResult([{
+    passes: [{ pass_id: "example-pass" }],
+  }]), true);
+});
+
 test("the start tracker emits at most once per page load", () => {
   const calls = [];
   const tracker = analytics.createExpertModeStartTracker({
