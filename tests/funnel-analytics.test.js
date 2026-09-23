@@ -87,6 +87,56 @@ test("submit aggregate counts reject invalid or identifying values", () => {
   assert.equal("resorts" in message, false);
 });
 
+test("expert mode result links rendered recommendations to outbound clicks", () => {
+  const calls = [];
+  const parentWindow = {
+    postMessage(message, origin) {
+      calls.push({ message, origin });
+    },
+  };
+
+  analytics.sendExpertModeResult(
+    {
+      entryMethod: "manual",
+      recommendationId: "recommendation-123",
+      recommendedPassCount: 2,
+      resultCount: 3,
+      solverVersion: "expert-mode-v1",
+    },
+    { currentWindow: {}, parentWindow },
+  );
+
+  assert.deepEqual(calls, [{
+    origin: "https://www.snow-genius.com",
+    message: {
+      type: "snow_genius_funnel_event",
+      event_name: "expert_mode_result",
+      tool: "expert_mode",
+      environment: "production",
+      solver_version: "expert-mode-v1",
+      entry_method: "manual",
+      recommendation_id: "recommendation-123",
+      result_count: 3,
+      recommended_pass_count: 2,
+    },
+  }]);
+});
+
+test("result messages reject invalid aggregate counts and omit result details", () => {
+  const message = analytics.buildExpertModeResultMessage({
+    recommendationId: "recommendation-456",
+    recommendedPassCount: -1,
+    resultCount: 1.5,
+    passNames: ["Example Pass"],
+    response: { internal: true },
+  });
+
+  assert.equal(message.recommended_pass_count, null);
+  assert.equal(message.result_count, null);
+  assert.equal("passNames" in message, false);
+  assert.equal("response" in message, false);
+});
+
 test("the start tracker emits at most once per page load", () => {
   const calls = [];
   const tracker = analytics.createExpertModeStartTracker({
