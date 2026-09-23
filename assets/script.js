@@ -300,7 +300,7 @@
 
   function trackExpertModeResult(data, recommendationId) {
     const resultOptions = normalizeResultOptions(data);
-    if (!resultOptions.length) {
+    if (!hasRecommendedResult(resultOptions)) {
       return { sent: false, skipped: true };
     }
 
@@ -2138,6 +2138,11 @@
     return Array.isArray(result?.unmet_by_rider) ? result.unmet_by_rider : [];
   }
 
+  function hasRecommendedResult(resultOptions) {
+    return funnelAnalytics?.hasRecommendedResult?.(resultOptions)
+      ?? Boolean(resultOptions.length && getResultPassCount(resultOptions[0]) > 0);
+  }
+
   function normalizeResultOptions(data) {
     const legacyResults = Array.isArray(data?.results) ? data.results : [];
     if (legacyResults.length) {
@@ -2871,7 +2876,7 @@
       const recommendationId = outboundAnalytics?.createRecommendationId?.() || createUniqueId();
       lastExpertModeOutput = data;
       renderResults(data, payload, recommendationId);
-      if (normalizeResultOptions(data).length) {
+      if (hasRecommendedResult(normalizeResultOptions(data))) {
         trackExpertModeResult(data, recommendationId);
       } else {
         trackExpertModeNoResult(payload);
