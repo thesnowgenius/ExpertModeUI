@@ -15,6 +15,7 @@
   const MESSAGE_TYPE = "snow_genius_funnel_event";
   const START_EVENT_NAME = "expert_mode_start";
   const SUBMIT_EVENT_NAME = "expert_mode_submit";
+  const RESULT_EVENT_NAME = "expert_mode_result";
   const EVENT_NAME = START_EVENT_NAME;
   const ENTRY_METHODS = new Set(["manual", "shared_link"]);
 
@@ -55,6 +56,20 @@
     };
   }
 
+  function buildExpertModeResultMessage(details = {}) {
+    return {
+      type: MESSAGE_TYPE,
+      event_name: RESULT_EVENT_NAME,
+      tool: "expert_mode",
+      environment: "production",
+      solver_version: details.solverVersion || "unknown",
+      entry_method: normalizeEntryMethod(details.entryMethod),
+      recommendation_id: details.recommendationId || "unknown",
+      result_count: normalizeAggregateCount(details.resultCount),
+      recommended_pass_count: normalizeAggregateCount(details.recommendedPassCount),
+    };
+  }
+
   function sendMessage(message, options = {}) {
     const currentWindow = options.currentWindow || root;
     const parentWindow = options.parentWindow || root?.parent;
@@ -83,6 +98,10 @@
     return sendMessage(buildExpertModeSubmitMessage(details), options);
   }
 
+  function sendExpertModeResult(details = {}, options = {}) {
+    return sendMessage(buildExpertModeResultMessage(details), options);
+  }
+
   function createExpertModeStartTracker(options = {}) {
     let tracked = false;
 
@@ -105,14 +124,17 @@
     EVENT_NAME,
     MESSAGE_TYPE,
     PARENT_ORIGIN,
+    RESULT_EVENT_NAME,
     START_EVENT_NAME,
     SUBMIT_EVENT_NAME,
     buildExpertModeStartMessage,
+    buildExpertModeResultMessage,
     buildExpertModeSubmitMessage,
     createExpertModeStartTracker,
     normalizeAggregateCount,
     normalizeEntryMethod,
     sendExpertModeStart,
+    sendExpertModeResult,
     sendExpertModeSubmit,
   });
 });

@@ -297,6 +297,21 @@
       solverVersion: SOLVER_VERSION,
     }, { isDevMode }) || { sent: false, skipped: true };
   }
+
+  function trackExpertModeResult(data, recommendationId) {
+    const resultOptions = normalizeResultOptions(data);
+    if (!resultOptions.length) {
+      return { sent: false, skipped: true };
+    }
+
+    return funnelAnalytics?.sendExpertModeResult?.({
+      entryMethod: expertModeEntryMethod,
+      recommendationId,
+      recommendedPassCount: getResultPassCount(resultOptions[0]),
+      resultCount: resultOptions.length,
+      solverVersion: SOLVER_VERSION,
+    }, { isDevMode }) || { sent: false, skipped: true };
+  }
   let feedbackSessionId = createUniqueId();
   let feedbackSubmitted = false;
   let shareFeedbackTimeoutId = 0;
@@ -2846,6 +2861,7 @@
       const recommendationId = outboundAnalytics?.createRecommendationId?.() || createUniqueId();
       lastExpertModeOutput = data;
       renderResults(data, payload, recommendationId);
+      trackExpertModeResult(data, recommendationId);
       showNotice("");
       setStatus("Results updated.");
       scrollToResults();
