@@ -137,6 +137,59 @@ test("result messages reject invalid aggregate counts and omit result details", 
   assert.equal("response" in message, false);
 });
 
+test("expert mode no-result uses the existing aggregate metric parameters", () => {
+  const calls = [];
+  const parentWindow = {
+    postMessage(message, origin) {
+      calls.push({ message, origin });
+    },
+  };
+
+  analytics.sendExpertModeNoResult(
+    {
+      entryMethod: "shared_link",
+      resortCount: 2,
+      riderCount: 1,
+      requestedDays: 5,
+      solverVersion: "expert-mode-v1",
+    },
+    { currentWindow: {}, parentWindow },
+  );
+
+  assert.deepEqual(calls, [{
+    origin: "https://www.snow-genius.com",
+    message: {
+      type: "snow_genius_funnel_event",
+      event_name: "expert_mode_no_result",
+      tool: "expert_mode",
+      environment: "production",
+      solver_version: "expert-mode-v1",
+      entry_method: "shared_link",
+      rider_count: 1,
+      resort_count: 2,
+      requested_days: 5,
+    },
+  }]);
+});
+
+test("no-result messages omit itinerary and response details", () => {
+  const message = analytics.buildExpertModeNoResultMessage({
+    riderCount: null,
+    resortCount: "invalid",
+    requestedDays: Number.POSITIVE_INFINITY,
+    riders: [{ age: 34 }],
+    resorts: [{ id: "example-resort" }],
+    response: { internal: true },
+  });
+
+  assert.equal(message.rider_count, null);
+  assert.equal(message.resort_count, null);
+  assert.equal(message.requested_days, null);
+  assert.equal("riders" in message, false);
+  assert.equal("resorts" in message, false);
+  assert.equal("response" in message, false);
+});
+
 test("the start tracker emits at most once per page load", () => {
   const calls = [];
   const tracker = analytics.createExpertModeStartTracker({

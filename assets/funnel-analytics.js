@@ -16,6 +16,7 @@
   const START_EVENT_NAME = "expert_mode_start";
   const SUBMIT_EVENT_NAME = "expert_mode_submit";
   const RESULT_EVENT_NAME = "expert_mode_result";
+  const NO_RESULT_EVENT_NAME = "expert_mode_no_result";
   const EVENT_NAME = START_EVENT_NAME;
   const ENTRY_METHODS = new Set(["manual", "shared_link"]);
 
@@ -70,6 +71,20 @@
     };
   }
 
+  function buildExpertModeNoResultMessage(details = {}) {
+    return {
+      type: MESSAGE_TYPE,
+      event_name: NO_RESULT_EVENT_NAME,
+      tool: "expert_mode",
+      environment: "production",
+      solver_version: details.solverVersion || "unknown",
+      entry_method: normalizeEntryMethod(details.entryMethod),
+      rider_count: normalizeAggregateCount(details.riderCount),
+      resort_count: normalizeAggregateCount(details.resortCount),
+      requested_days: normalizeAggregateCount(details.requestedDays),
+    };
+  }
+
   function sendMessage(message, options = {}) {
     const currentWindow = options.currentWindow || root;
     const parentWindow = options.parentWindow || root?.parent;
@@ -102,6 +117,10 @@
     return sendMessage(buildExpertModeResultMessage(details), options);
   }
 
+  function sendExpertModeNoResult(details = {}, options = {}) {
+    return sendMessage(buildExpertModeNoResultMessage(details), options);
+  }
+
   function createExpertModeStartTracker(options = {}) {
     let tracked = false;
 
@@ -123,16 +142,19 @@
   return Object.freeze({
     EVENT_NAME,
     MESSAGE_TYPE,
+    NO_RESULT_EVENT_NAME,
     PARENT_ORIGIN,
     RESULT_EVENT_NAME,
     START_EVENT_NAME,
     SUBMIT_EVENT_NAME,
+    buildExpertModeNoResultMessage,
     buildExpertModeStartMessage,
     buildExpertModeResultMessage,
     buildExpertModeSubmitMessage,
     createExpertModeStartTracker,
     normalizeAggregateCount,
     normalizeEntryMethod,
+    sendExpertModeNoResult,
     sendExpertModeStart,
     sendExpertModeResult,
     sendExpertModeSubmit,

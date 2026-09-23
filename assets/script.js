@@ -312,6 +312,16 @@
       solverVersion: SOLVER_VERSION,
     }, { isDevMode }) || { sent: false, skipped: true };
   }
+
+  function trackExpertModeNoResult(payload) {
+    return funnelAnalytics?.sendExpertModeNoResult?.({
+      entryMethod: expertModeEntryMethod,
+      resortCount: Array.isArray(payload?.resorts) ? payload.resorts.length : null,
+      riderCount: Array.isArray(payload?.riders) ? payload.riders.length : null,
+      requestedDays: requestedDayCount(payload),
+      solverVersion: SOLVER_VERSION,
+    }, { isDevMode }) || { sent: false, skipped: true };
+  }
   let feedbackSessionId = createUniqueId();
   let feedbackSubmitted = false;
   let shareFeedbackTimeoutId = 0;
@@ -2861,7 +2871,11 @@
       const recommendationId = outboundAnalytics?.createRecommendationId?.() || createUniqueId();
       lastExpertModeOutput = data;
       renderResults(data, payload, recommendationId);
-      trackExpertModeResult(data, recommendationId);
+      if (normalizeResultOptions(data).length) {
+        trackExpertModeResult(data, recommendationId);
+      } else {
+        trackExpertModeNoResult(payload);
+      }
       showNotice("");
       setStatus("Results updated.");
       scrollToResults();
