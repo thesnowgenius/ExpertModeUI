@@ -322,6 +322,17 @@
       solverVersion: SOLVER_VERSION,
     }, { isDevMode }) || { sent: false, skipped: true };
   }
+
+  function trackExpertModeError(payload, errorType) {
+    return funnelAnalytics?.sendExpertModeError?.({
+      entryMethod: expertModeEntryMethod,
+      errorType,
+      resortCount: Array.isArray(payload?.resorts) ? payload.resorts.length : null,
+      riderCount: Array.isArray(payload?.riders) ? payload.riders.length : null,
+      requestedDays: requestedDayCount(payload),
+      solverVersion: SOLVER_VERSION,
+    }, { isDevMode }) || { sent: false, skipped: true };
+  }
   let feedbackSessionId = createUniqueId();
   let feedbackSubmitted = false;
   let shareFeedbackTimeoutId = 0;
@@ -2143,6 +2154,22 @@
       ?? Boolean(resultOptions.length && getResultPassCount(resultOptions[0]) > 0);
   }
 
+  function createRequestError(message, analyticsType, status = null) {
+    const error = new Error(message);
+    error.analyticsType = analyticsType;
+    error.status = status;
+    return error;
+  }
+
+  function requestErrorType(error) {
+    return funnelAnalytics?.classifyExpertModeError?.({
+      invalidResponse: error?.analyticsType === "invalid_response",
+      isNetworkError: error instanceof TypeError,
+      isTimeout: error?.name === "AbortError",
+      status: error?.status,
+    }) || "unknown";
+  }
+
   function normalizeResultOptions(data) {
     const legacyResults = Array.isArray(data?.results) ? data.results : [];
     if (legacyResults.length) {
@@ -2859,18 +2886,42 @@
       });
 
       const text = await response.text();
-      let data;
+      let data = null;
+      let responseParseFailed = false;
       try {
-        data = text ? JSON.parse(text) : {};
+        data = text ? JSON.parse(text) : null;
       } catch (_error) {
-        data = { error: "Invalid JSON response", raw: text };
+        responseParseFailed = true;
       }
 
-      els.rawResponse.textContent = JSON.stringify(data, null, 2);
+      els.rawResponse.textContent = responseParseFailed
+        ? text
+        : JSON.stringify(data ?? {}, null, 2);
 
       if (!response.ok) {
         const detail = data?.detail || data?.error || `Request failed (${response.status})`;
-        throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+        const analyticsType = response.status >= 400 && response.status < 500
+          ? "http_4xx"
+          : response.status >= 500 && response.status < 600
+            ? "http_5xx"
+            : "unknown";
+        throw createRequestError(
+          typeof detail === "string" ? detail : JSON.stringify(detail),
+          analyticsType,
+          response.status,
+        );
+      }
+
+      if (
+        responseParseFailed ||
+        !data ||
+        typeof data !== "object" ||
+        Array.isArray(data) ||
+        ((data.error || data.detail) &&
+          !Array.isArray(data.results) &&
+          !Array.isArray(data.ranked_passes))
+      ) {
+        throw createRequestError("Invalid response from the recommendation service.", "invalid_response");
       }
 
       const recommendationId = outboundAnalytics?.createRecommendationId?.() || createUniqueId();
@@ -2886,6 +2937,7 @@
       scrollToResults();
     } catch (error) {
       lastExpertModeOutput = null;
+      trackExpertModeError(payload, requestErrorType(error));
       const message =
         error && typeof error === "object" && "name" in error && error.name === "AbortError"
           ? `Request timed out after ${Math.round(REQUEST_TIMEOUT_MS / 1000)}s`

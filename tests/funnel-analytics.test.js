@@ -211,6 +211,65 @@ test("recommended passes are detected when an explicit count is absent", () => {
   }]), true);
 });
 
+test("expert mode errors use approved categories and aggregate-only context", () => {
+  const calls = [];
+  const parentWindow = {
+    postMessage(message, origin) {
+      calls.push({ message, origin });
+    },
+  };
+
+  analytics.sendExpertModeError(
+    {
+      entryMethod: "manual",
+      errorType: "http_5xx",
+      resortCount: 2,
+      riderCount: 1,
+      requestedDays: 7,
+      solverVersion: "expert-mode-v1",
+      errorMessage: "Sensitive backend detail",
+    },
+    { currentWindow: {}, parentWindow },
+  );
+
+  assert.deepEqual(calls, [{
+    origin: "https://www.snow-genius.com",
+    message: {
+      type: "snow_genius_funnel_event",
+      event_name: "expert_mode_error",
+      tool: "expert_mode",
+      environment: "production",
+      solver_version: "expert-mode-v1",
+      entry_method: "manual",
+      error_type: "http_5xx",
+      rider_count: 1,
+      resort_count: 2,
+      requested_days: 7,
+    },
+  }]);
+});
+
+test("unknown error categories normalize without exposing error details", () => {
+  const message = analytics.buildExpertModeErrorMessage({
+    errorType: "database_credentials_exposed",
+    errorMessage: "do not send this",
+    response: { internal: true },
+  });
+
+  assert.equal(message.error_type, "unknown");
+  assert.equal("errorMessage" in message, false);
+  assert.equal("response" in message, false);
+});
+
+test("request failures map to the receiver's approved error categories", () => {
+  assert.equal(analytics.classifyExpertModeError({ isTimeout: true }), "timeout");
+  assert.equal(analytics.classifyExpertModeError({ status: 404 }), "http_4xx");
+  assert.equal(analytics.classifyExpertModeError({ status: 503 }), "http_5xx");
+  assert.equal(analytics.classifyExpertModeError({ invalidResponse: true }), "invalid_response");
+  assert.equal(analytics.classifyExpertModeError({ isNetworkError: true }), "network_error");
+  assert.equal(analytics.classifyExpertModeError({}), "unknown");
+});
+
 test("the start tracker emits at most once per page load", () => {
   const calls = [];
   const tracker = analytics.createExpertModeStartTracker({
