@@ -17,8 +17,17 @@
   const SUBMIT_EVENT_NAME = "expert_mode_submit";
   const RESULT_EVENT_NAME = "expert_mode_result";
   const NO_RESULT_EVENT_NAME = "expert_mode_no_result";
+  const ERROR_EVENT_NAME = "expert_mode_error";
   const EVENT_NAME = START_EVENT_NAME;
   const ENTRY_METHODS = new Set(["manual", "shared_link"]);
+  const ERROR_TYPES = new Set([
+    "timeout",
+    "http_4xx",
+    "http_5xx",
+    "invalid_response",
+    "network_error",
+    "unknown",
+  ]);
 
   function normalizeEntryMethod(value) {
     return ENTRY_METHODS.has(value) ? value : "manual";
@@ -30,6 +39,21 @@
     }
     const number = Number(value);
     return Number.isInteger(number) && number >= 0 ? number : null;
+  }
+
+  function normalizeErrorType(value) {
+    return ERROR_TYPES.has(value) ? value : "unknown";
+  }
+
+  function classifyExpertModeError(details = {}) {
+    if (details.isTimeout) return "timeout";
+
+    const status = Number(details.status);
+    if (Number.isInteger(status) && status >= 400 && status < 500) return "http_4xx";
+    if (Number.isInteger(status) && status >= 500 && status < 600) return "http_5xx";
+    if (details.invalidResponse) return "invalid_response";
+    if (details.isNetworkError) return "network_error";
+    return "unknown";
   }
 
   function buildExpertModeStartMessage(details = {}) {
@@ -85,6 +109,21 @@
     };
   }
 
+  function buildExpertModeErrorMessage(details = {}) {
+    return {
+      type: MESSAGE_TYPE,
+      event_name: ERROR_EVENT_NAME,
+      tool: "expert_mode",
+      environment: "production",
+      solver_version: details.solverVersion || "unknown",
+      entry_method: normalizeEntryMethod(details.entryMethod),
+      error_type: normalizeErrorType(details.errorType),
+      rider_count: normalizeAggregateCount(details.riderCount),
+      resort_count: normalizeAggregateCount(details.resortCount),
+      requested_days: normalizeAggregateCount(details.requestedDays),
+    };
+  }
+
   function hasRecommendedResult(resultOptions) {
     if (!Array.isArray(resultOptions) || !resultOptions.length) return false;
 
@@ -133,6 +172,10 @@
     return sendMessage(buildExpertModeNoResultMessage(details), options);
   }
 
+  function sendExpertModeError(details = {}, options = {}) {
+    return sendMessage(buildExpertModeErrorMessage(details), options);
+  }
+
   function createExpertModeStartTracker(options = {}) {
     let tracked = false;
 
@@ -153,20 +196,25 @@
 
   return Object.freeze({
     EVENT_NAME,
+    ERROR_EVENT_NAME,
     MESSAGE_TYPE,
     NO_RESULT_EVENT_NAME,
     PARENT_ORIGIN,
     RESULT_EVENT_NAME,
     START_EVENT_NAME,
     SUBMIT_EVENT_NAME,
+    buildExpertModeErrorMessage,
     buildExpertModeNoResultMessage,
     buildExpertModeStartMessage,
     buildExpertModeResultMessage,
     buildExpertModeSubmitMessage,
+    classifyExpertModeError,
     createExpertModeStartTracker,
     hasRecommendedResult,
     normalizeAggregateCount,
     normalizeEntryMethod,
+    normalizeErrorType,
+    sendExpertModeError,
     sendExpertModeNoResult,
     sendExpertModeStart,
     sendExpertModeResult,
