@@ -270,6 +270,61 @@ test("request failures map to the receiver's approved error categories", () => {
   assert.equal(analytics.classifyExpertModeError({}), "unknown");
 });
 
+test("successful positive feedback sends only approved funnel context", () => {
+  const calls = [];
+  const parentWindow = {
+    postMessage(message, origin) {
+      calls.push({ message, origin });
+    },
+  };
+
+  analytics.sendExpertModeFeedback(
+    {
+      entryMethod: "shared_link",
+      feedbackType: "positive",
+      feedbackReason: "price_seems_wrong",
+      recommendationId: "recommendation-123",
+      solverVersion: "expert-mode-v1",
+      comment: "Do not send this comment",
+      userEmail: "private@example.com",
+    },
+    { currentWindow: {}, parentWindow },
+  );
+
+  assert.deepEqual(calls, [{
+    origin: "https://www.snow-genius.com",
+    message: {
+      type: "snow_genius_funnel_event",
+      event_name: "expert_mode_feedback",
+      tool: "expert_mode",
+      environment: "production",
+      solver_version: "expert-mode-v1",
+      entry_method: "shared_link",
+      feedback_type: "positive",
+      feedback_reason: "not_applicable",
+      recommendation_id: "recommendation-123",
+    },
+  }]);
+});
+
+test("negative feedback reasons are allowlisted and identifying fields are omitted", () => {
+  const approved = analytics.buildExpertModeFeedbackMessage({
+    feedbackType: "negative",
+    feedbackReason: "blackout_or_weekend_issue",
+  });
+  const unsupported = analytics.buildExpertModeFeedbackMessage({
+    feedbackType: "negative",
+    feedbackReason: "free-form private text",
+    comment: "private",
+    userEmail: "private@example.com",
+  });
+
+  assert.equal(approved.feedback_reason, "blackout_or_weekend_issue");
+  assert.equal(unsupported.feedback_reason, "not_provided");
+  assert.equal("comment" in unsupported, false);
+  assert.equal("userEmail" in unsupported, false);
+});
+
 test("the start tracker emits at most once per page load", () => {
   const calls = [];
   const tracker = analytics.createExpertModeStartTracker({
