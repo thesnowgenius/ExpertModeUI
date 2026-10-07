@@ -333,8 +333,19 @@
       solverVersion: SOLVER_VERSION,
     }, { isDevMode }) || { sent: false, skipped: true };
   }
+
+  function trackExpertModeFeedback(feedbackType, feedbackReason) {
+    return funnelAnalytics?.sendExpertModeFeedback?.({
+      entryMethod: expertModeEntryMethod,
+      feedbackReason,
+      feedbackType,
+      recommendationId: lastRecommendationId,
+      solverVersion: SOLVER_VERSION,
+    }, { isDevMode }) || { sent: false, skipped: true };
+  }
   let feedbackSessionId = createUniqueId();
   let feedbackSubmitted = false;
+  let lastRecommendationId = "unknown";
   let shareFeedbackTimeoutId = 0;
   let inMemoryTrackingSessionId = "";
 
@@ -891,6 +902,7 @@
     lastExpertModeOutput = null;
     feedbackSessionId = createUniqueId();
     feedbackSubmitted = false;
+    lastRecommendationId = "unknown";
   }
 
   function setBusy(isBusy) {
@@ -2885,6 +2897,7 @@
         body: JSON.stringify(payload),
       });
       feedbackSubmitted = true;
+      trackExpertModeFeedback(feedbackType, payload.reason);
       if (status) status.textContent = "Thanks — feedback received.";
     } catch (error) {
       console.error("Feedback submit failed", error);
@@ -2989,6 +3002,7 @@
       }
 
       const recommendationId = outboundAnalytics?.createRecommendationId?.() || createUniqueId();
+      lastRecommendationId = recommendationId;
       lastExpertModeOutput = data;
       renderResults(data, payload, recommendationId);
       if (hasRecommendedResult(normalizeResultOptions(data))) {

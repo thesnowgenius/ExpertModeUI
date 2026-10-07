@@ -18,6 +18,7 @@
   const RESULT_EVENT_NAME = "expert_mode_result";
   const NO_RESULT_EVENT_NAME = "expert_mode_no_result";
   const ERROR_EVENT_NAME = "expert_mode_error";
+  const FEEDBACK_EVENT_NAME = "expert_mode_feedback";
   const EVENT_NAME = START_EVENT_NAME;
   const ENTRY_METHODS = new Set(["manual", "shared_link"]);
   const ERROR_TYPES = new Set([
@@ -27,6 +28,14 @@
     "invalid_response",
     "network_error",
     "unknown",
+  ]);
+  const FEEDBACK_TYPES = new Set(["positive", "negative"]);
+  const NEGATIVE_FEEDBACK_REASONS = new Set([
+    "expected_different_pass",
+    "price_seems_wrong",
+    "resort_access_seems_wrong",
+    "blackout_or_weekend_issue",
+    "other",
   ]);
 
   function normalizeEntryMethod(value) {
@@ -43,6 +52,15 @@
 
   function normalizeErrorType(value) {
     return ERROR_TYPES.has(value) ? value : "unknown";
+  }
+
+  function normalizeFeedbackType(value) {
+    return FEEDBACK_TYPES.has(value) ? value : "unknown";
+  }
+
+  function normalizeFeedbackReason(feedbackType, value) {
+    if (feedbackType === "positive") return "not_applicable";
+    return NEGATIVE_FEEDBACK_REASONS.has(value) ? value : "not_provided";
   }
 
   function classifyExpertModeError(details = {}) {
@@ -124,6 +142,21 @@
     };
   }
 
+  function buildExpertModeFeedbackMessage(details = {}) {
+    const feedbackType = normalizeFeedbackType(details.feedbackType);
+    return {
+      type: MESSAGE_TYPE,
+      event_name: FEEDBACK_EVENT_NAME,
+      tool: "expert_mode",
+      environment: "production",
+      solver_version: details.solverVersion || "unknown",
+      entry_method: normalizeEntryMethod(details.entryMethod),
+      feedback_type: feedbackType,
+      feedback_reason: normalizeFeedbackReason(feedbackType, details.feedbackReason),
+      recommendation_id: details.recommendationId || "unknown",
+    };
+  }
+
   function hasRecommendedResult(resultOptions) {
     if (!Array.isArray(resultOptions) || !resultOptions.length) return false;
 
@@ -176,6 +209,10 @@
     return sendMessage(buildExpertModeErrorMessage(details), options);
   }
 
+  function sendExpertModeFeedback(details = {}, options = {}) {
+    return sendMessage(buildExpertModeFeedbackMessage(details), options);
+  }
+
   function createExpertModeStartTracker(options = {}) {
     let tracked = false;
 
@@ -197,6 +234,7 @@
   return Object.freeze({
     EVENT_NAME,
     ERROR_EVENT_NAME,
+    FEEDBACK_EVENT_NAME,
     MESSAGE_TYPE,
     NO_RESULT_EVENT_NAME,
     PARENT_ORIGIN,
@@ -204,6 +242,7 @@
     START_EVENT_NAME,
     SUBMIT_EVENT_NAME,
     buildExpertModeErrorMessage,
+    buildExpertModeFeedbackMessage,
     buildExpertModeNoResultMessage,
     buildExpertModeStartMessage,
     buildExpertModeResultMessage,
@@ -214,7 +253,10 @@
     normalizeAggregateCount,
     normalizeEntryMethod,
     normalizeErrorType,
+    normalizeFeedbackReason,
+    normalizeFeedbackType,
     sendExpertModeError,
+    sendExpertModeFeedback,
     sendExpertModeNoResult,
     sendExpertModeStart,
     sendExpertModeResult,
