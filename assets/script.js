@@ -849,6 +849,8 @@
       input.value = nextUrl;
       syncPresetFromUrl(nextUrl);
       storeApiUrl(nextUrl);
+      catalogRevision = null;
+      loadResorts();
       setStatus("Developer API endpoint updated.");
       refreshCatalogStatus(panel);
     });
@@ -858,6 +860,8 @@
       input.value = currentApiUrl;
       syncPresetFromUrl(currentApiUrl);
       clearStoredApiUrl();
+      catalogRevision = null;
+      loadResorts();
       setStatus("Developer API endpoint reset to Render.");
       refreshCatalogStatus(panel);
     });
@@ -1019,9 +1023,18 @@
       .filter(Boolean);
   }
 
+  let catalogRevision = null;
+  let catalogReady = false;
+  let catalogLoadId = 0;
+
   function loadResorts() {
-    return fetch("resorts.json", {
-      credentials: "same-origin",
+    catalogReady = false;
+    const loadId = ++catalogLoadId;
+    return fetch(apiSiblingUrl("/catalog/bootstrap"), {
+      credentials: "omit",
+      mode: "cors",
+      cache: "no-cache",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       redirect: "error",
     })
       .then((response) => {
@@ -1030,13 +1043,16 @@
         }
         return response.json();
       })
-      .then((json) => {
-        if (!Array.isArray(json)) {
+      .then((bootstrap) => {
+        if (loadId !== catalogLoadId) return;
+        const json = bootstrap.resorts;
+        if (typeof bootstrap.revision !== "string" || !Array.isArray(json)) {
           throw new Error("Resort list format is invalid");
         }
         if (json.length > MAX_RESORT_CATALOG_ROWS) {
           throw new Error("Resort list is unexpectedly large");
         }
+        catalogRevision = bootstrap.revision;
         resortCatalog = parseResortRows(json);
         resortCatalog.sort((a, b) => a.name.localeCompare(b.name));
         resortById = new Map();
@@ -1051,9 +1067,14 @@
         resortByNormalizedSearchPhrase = new Map(
           Array.from(searchPhrases.entries()).filter((entry) => entry[1])
         );
-        document.querySelectorAll(".resort-row").forEach((row) => wireResortRow(row));
+        document.querySelectorAll(".resort-row").forEach((row) => {
+          wireResortRow(row);
+          row.querySelector(".resort-input")?.dispatchEvent(new Event("catalogupdated"));
+        });
+        catalogReady = true;
       })
       .catch((error) => {
+        if (loadId !== catalogLoadId) return;
         showError(`Resort list failed to load: ${error.message}`);
       });
   }
@@ -1063,8 +1084,8 @@
     row.className = "row rider-row";
     row.innerHTML = `
       <label class="field rider-age-field">
-        <span class="field-label">Age</span>
-        <input type="number" min="0" max="${MAX_AGE}" inputmode="numeric" placeholder="Age" class="input rider-age" aria-label="Rider age" />
+        <span class="field-label">Age at season start</span>
+        <input type="number" min="0" max="${MAX_AGE}" inputmode="numeric" placeholder="Age" class="input rider-age" aria-label="Rider age at season start" aria-describedby="rider-age-guidance" />
       </label>
       <label class="field rider-category-field">
         <span class="field-label">Discount or activity</span>
@@ -1327,11 +1348,30 @@
       }, TYPEAHEAD_DEBOUNCE_MS);
     }
 
-    input.addEventListener("input", scheduleSuggestions);
+    input.addEventListener("catalogupdated", () => {
+      closeSuggestions();
+      const selected = resortById.get(input.dataset.resortId || "");
+      if (selected) applySelectedResort(input, selected);
+      else clearSelectedResort(input);
+    });
+    input.addEventListener("input", () => {
+      closeSuggestions();
+      clearSelectedResort(input);
+      scheduleSuggestions();
+    });
     input.addEventListener("click", () => {
       updateSuggestions({ forceBrowse: true });
     });
     input.addEventListener("keydown", (event) => {
+      if (typeaheadTimer && ["ArrowDown", "ArrowUp", "Enter"].includes(event.key)) {
+        window.clearTimeout(typeaheadTimer);
+        typeaheadTimer = null;
+        updateSuggestions({ forceBrowse: true });
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault();
+          return;
+        }
+      }
       const hasOpenList = suggestions.length > 0 && !list.hidden;
       if (event.key === "ArrowDown" && !hasOpenList) {
         event.preventDefault();
@@ -2592,6 +2632,23 @@
       return;
     }
 
+    if (resultOptions.every((result) => getResultPasses(result).length === 0)) {
+      const empty = document.createElement("section");
+      empty.className = "result-card";
+      const heading = document.createElement("h3");
+      heading.textContent = "No priced recommendation available";
+      const message = document.createElement("p");
+      message.textContent = "No priced pass matches these selections. Try adjusting your resort or access requirements.";
+      empty.appendChild(heading);
+      empty.appendChild(message);
+      const unmet = renderUnmet(getResultUnmet(resultOptions[0]));
+      if (unmet) empty.appendChild(unmet);
+      els.results.appendChild(empty);
+      renderFeedbackBox();
+      revealResults();
+      return;
+    }
+
     const comparison = renderComparison(resultOptions);
     if (comparison) {
       els.results.appendChild(comparison);
@@ -2872,10 +2929,14 @@
     try {
       const controller = new AbortController();
       timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      if (!catalogReady) {
+        await loadResorts();
+        throw new Error("Catalog refreshed. Review your resort selections and submit again.");
+      }
       trackExpertModeSubmit(payload);
       const response = await fetch(currentApiUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-SG-Catalog-Revision": catalogRevision },
         mode: "cors",
         credentials: "omit",
         redirect: "error",
@@ -2898,6 +2959,9 @@
         ? text
         : JSON.stringify(data ?? {}, null, 2);
 
+      if (response.status === 409 && data?.code === "catalog_changed") {
+        await loadResorts();
+      }
       if (!response.ok) {
         const detail = data?.detail || data?.error || `Request failed (${response.status})`;
         const analyticsType = response.status >= 400 && response.status < 500

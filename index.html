@@ -28,12 +28,13 @@
           <button id="add-rider" class="btn">+ Add Rider</button>
         </div>
       </div>
+      <p id="rider-age-guidance" class="muted">Enter each rider’s age at the start of the ski season you’re planning. Pass providers may use different age cutoff dates.</p>
       <div id="riders" class="rows">
         <!-- First rider row (Stable-4 style) -->
         <div class="row rider-row">
           <label class="field rider-age-field">
-            <span class="field-label">Age</span>
-            <input type="number" min="0" max="120" inputmode="numeric" placeholder="Age" class="input rider-age" aria-label="Rider age" />
+            <span class="field-label">Age at season start</span>
+            <input type="number" min="0" max="120" inputmode="numeric" placeholder="Age" class="input rider-age" aria-label="Rider age at season start" aria-describedby="rider-age-guidance" />
           </label>
           <label class="field rider-category-field">
             <span class="field-label">Discount or activity</span>
@@ -106,6 +107,7 @@
 
     <section class="section">
       <h2>Results</h2>
+      <p class="muted">Prices are estimates based on the ages entered. Confirm the provider’s age cutoff, eligibility and final price before buying.</p>
       <div id="results" aria-live="polite" aria-busy="false"></div>
     </section>
   </main>
