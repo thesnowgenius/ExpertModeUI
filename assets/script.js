@@ -1035,12 +1035,29 @@
       .filter(Boolean);
   }
 
+  let catalogReviewMode = false;
+  const normalCatalogTagline = document.querySelector(".tagline").textContent;
+  function applyCatalogReviewScope(bootstrap) {
+    if (bootstrap.review_scope !== undefined && bootstrap.review_scope?.mode !== "limited_preview") {
+      throw new Error("Unsupported catalog review scope");
+    }
+    catalogReviewMode = bootstrap.review_scope?.mode === "limited_preview";
+    const notice = document.getElementById("catalog-review-notice");
+    notice.textContent = catalogReviewMode ? 'Limited catalog preview — for testing. Results compare only this review catalog. Some passes, ages, discounts and resort access are unavailable. Verify provider pricing and eligibility before purchasing.' : "";
+    notice.hidden = !catalogReviewMode;
+    document.querySelector(".tagline").textContent = catalogReviewMode
+      ? "Expert Mode — compare passes in this limited review catalog."
+      : normalCatalogTagline;
+  }
+
   let catalogRevision = null;
   let catalogReady = false;
   let catalogLoadId = 0;
 
   function loadResorts() {
     catalogReady = false;
+    clearResults();
+    els.rawResponse.textContent = "";
     const loadId = ++catalogLoadId;
     return fetch(apiSiblingUrl("/catalog/bootstrap"), {
       credentials: "omit",
@@ -1064,6 +1081,7 @@
         if (json.length > MAX_RESORT_CATALOG_ROWS) {
           throw new Error("Resort list is unexpectedly large");
         }
+        applyCatalogReviewScope(bootstrap);
         catalogRevision = bootstrap.revision;
         resortCatalog = parseResortRows(json);
         resortCatalog.sort((a, b) => a.name.localeCompare(b.name));
@@ -2648,9 +2666,11 @@
       const empty = document.createElement("section");
       empty.className = "result-card";
       const heading = document.createElement("h3");
-      heading.textContent = "No priced recommendation available";
+      heading.textContent = catalogReviewMode ? "No match in review catalog" : "No priced recommendation available";
       const message = document.createElement("p");
-      message.textContent = "No priced pass matches these selections. Try adjusting your resort or access requirements.";
+      message.textContent = catalogReviewMode
+        ? "No match in this limited review catalog. This does not mean a suitable pass is unavailable elsewhere."
+        : "No priced pass matches these selections. Try adjusting your resort or access requirements.";
       empty.appendChild(heading);
       empty.appendChild(message);
       const unmet = renderUnmet(getResultUnmet(resultOptions[0]));
@@ -2947,7 +2967,9 @@
         throw new Error("Catalog refreshed. Review your resort selections and submit again.");
       }
       trackExpertModeSubmit(payload);
-      const response = await fetch(currentApiUrl, {
+      const requestCatalogLoadId = catalogLoadId;
+      const requestApiUrl = currentApiUrl;
+      const response = await fetch(requestApiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-SG-Catalog-Revision": catalogRevision },
         mode: "cors",
@@ -2960,6 +2982,9 @@
       });
 
       const text = await response.text();
+      if (requestCatalogLoadId !== catalogLoadId || requestApiUrl !== currentApiUrl) {
+        throw new Error("Catalog changed. Review your selections and submit again.");
+      }
       let data = null;
       let responseParseFailed = false;
       try {
