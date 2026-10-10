@@ -1,9 +1,25 @@
 (() => {
+  const isReviewDeployment = document.documentElement.dataset.sgDeployment === "review";
+  let reviewDeployment = null;
+  if (isReviewDeployment) {
+    try {
+      reviewDeployment = window.SnowGeniusReviewDeployment.validate(
+        window.SnowGeniusReviewConfig,
+        document.querySelector('meta[name="sg-review-api-origin"]')?.content,
+      );
+    } catch (_error) {
+      const notice = document.getElementById("catalog-review-notice");
+      notice.hidden = false;
+      notice.textContent = "Preview configuration is missing or invalid. Recommendations are unavailable.";
+      document.querySelectorAll("button, input, select").forEach((control) => { control.disabled = true; });
+      return;
+    }
+  }
   const DEFAULT_API_URL = "https://pass-picker-expert-mode-multi.onrender.com/score_pass";
   const FEEDBACK_ENDPOINT = "https://script.google.com/macros/s/AKfycbwt-xAh5hGm9JZEfMXnQnyF3cHICjrKI7JkcDs4hCL-XtiOSOVNqxi17fCnLFgVmzpo/exec";
   const SOLVER_VERSION = "expert-mode-v1";
-  const funnelAnalytics = window.SnowGeniusFunnelAnalytics;
-  const outboundAnalytics = window.SnowGeniusOutboundAnalytics;
+  const funnelAnalytics = isReviewDeployment ? null : window.SnowGeniusFunnelAnalytics;
+  const outboundAnalytics = isReviewDeployment ? null : window.SnowGeniusOutboundAnalytics;
   const SNOW_GENIUS_PARENT_ORIGIN = outboundAnalytics?.PARENT_ORIGIN || "https://www.snow-genius.com";
   const ALLOWED_REMOTE_API_HOSTS = new Set(["pass-picker-expert-mode-multi.onrender.com"]);
   const PASS_FAMILY_ICON_CONFIG = [
@@ -243,7 +259,7 @@
     isDevMode,
     solverVersion: SOLVER_VERSION,
   }) || (() => ({ sent: false, skipped: true }));
-  const DEFAULT_RESOLVED_API_URL = resolveApiUrl(window.API_URL, DEFAULT_API_URL);
+  const DEFAULT_RESOLVED_API_URL = reviewDeployment?.apiUrl || resolveApiUrl(window.API_URL, DEFAULT_API_URL);
   let currentApiUrl = loadStoredApiUrl(DEFAULT_RESOLVED_API_URL);
 
   const els = {
@@ -447,6 +463,7 @@
   }
 
   function resolveApiUrl(candidate, fallback) {
+    if (reviewDeployment) return reviewDeployment.apiUrl;
     const fallbackUrl = new URL(fallback, window.location.href);
     const rawCandidate = typeof candidate === "string" ? candidate.trim() : "";
     if (!rawCandidate) {
@@ -467,6 +484,7 @@
   }
 
   function loadStoredApiUrl(fallback) {
+    if (reviewDeployment) return reviewDeployment.apiUrl;
     if (!isDevMode) return fallback;
     try {
       const saved = window.localStorage?.getItem(DEV_API_STORAGE_KEY) || "";
@@ -792,6 +810,22 @@
     const title = document.createElement("h3");
     title.textContent = "API Endpoint";
 
+    if (reviewDeployment) {
+      const locked = document.createElement("p");
+      locked.textContent = `Preview API is locked to ${reviewDeployment.apiOrigin}`;
+      const status = document.createElement("pre");
+      status.className = "dev-api-status";
+      const refresh = document.createElement("button");
+      refresh.type = "button";
+      refresh.className = "btn subtle";
+      refresh.textContent = "Refresh Status";
+      refresh.addEventListener("click", () => refreshCatalogStatus(panel));
+      panel.append(title, locked, refresh, status);
+      els.devShellCard.insertBefore(panel, els.devShellCard.firstChild);
+      refreshCatalogStatus(panel);
+      return;
+    }
+
     const controls = document.createElement("div");
     controls.className = "dev-api-controls";
 
@@ -1038,6 +1072,9 @@
   let catalogReviewMode = false;
   const normalCatalogTagline = document.querySelector(".tagline").textContent;
   function applyCatalogReviewScope(bootstrap) {
+    if (isReviewDeployment && bootstrap.review_scope?.mode !== "limited_preview") {
+      throw new Error("Preview API must disclose its review catalog.");
+    }
     if (bootstrap.review_scope !== undefined && bootstrap.review_scope?.mode !== "limited_preview") {
       throw new Error("Unsupported catalog review scope");
     }
@@ -1880,6 +1917,7 @@
   }
 
   function getPassItemUrl(passItem) {
+    if (isReviewDeployment) return window.SnowGeniusReviewDeployment.providerUrl(passItem?.destination_url);
     const raw =
       passItem?.tracking_url ??
       passItem?.url ??
@@ -2816,6 +2854,7 @@
   }
 
   function renderFeedbackBox() {
+    if (isReviewDeployment) return;
     if (!els.results || !lastExpertModeInput || !lastExpertModeOutput) {
       console.warn("Feedback box skipped: missing results or captured request data.");
       return;
@@ -2877,6 +2916,7 @@
   }
 
   async function submitFeedback(feedbackType) {
+    if (isReviewDeployment) return;
     if (feedbackSubmitted || !lastExpertModeInput || !lastExpertModeOutput) return;
 
     const status = document.getElementById("feedback-status");
