@@ -1,9 +1,25 @@
 (() => {
+  const isReviewDeployment = document.documentElement.dataset.sgDeployment === "review";
+  let reviewDeployment = null;
+  if (isReviewDeployment) {
+    try {
+      reviewDeployment = window.SnowGeniusReviewDeployment.validate(
+        window.SnowGeniusReviewConfig,
+        document.querySelector('meta[name="sg-review-api-origin"]')?.content,
+      );
+    } catch (_error) {
+      const notice = document.getElementById("catalog-review-notice");
+      notice.hidden = false;
+      notice.textContent = "Preview configuration is missing or invalid. Recommendations are unavailable.";
+      document.querySelectorAll("button, input, select").forEach((control) => { control.disabled = true; });
+      return;
+    }
+  }
   const DEFAULT_API_URL = "https://pass-picker-expert-mode-multi.onrender.com/score_pass";
   const FEEDBACK_ENDPOINT = "https://script.google.com/macros/s/AKfycbwt-xAh5hGm9JZEfMXnQnyF3cHICjrKI7JkcDs4hCL-XtiOSOVNqxi17fCnLFgVmzpo/exec";
   const SOLVER_VERSION = "expert-mode-v1";
-  const funnelAnalytics = window.SnowGeniusFunnelAnalytics;
-  const outboundAnalytics = window.SnowGeniusOutboundAnalytics;
+  const funnelAnalytics = isReviewDeployment ? null : window.SnowGeniusFunnelAnalytics;
+  const outboundAnalytics = isReviewDeployment ? null : window.SnowGeniusOutboundAnalytics;
   const SNOW_GENIUS_PARENT_ORIGIN = outboundAnalytics?.PARENT_ORIGIN || "https://www.snow-genius.com";
   const ALLOWED_REMOTE_API_HOSTS = new Set(["pass-picker-expert-mode-multi.onrender.com"]);
   const PASS_FAMILY_ICON_CONFIG = [
@@ -243,7 +259,7 @@
     isDevMode,
     solverVersion: SOLVER_VERSION,
   }) || (() => ({ sent: false, skipped: true }));
-  const DEFAULT_RESOLVED_API_URL = resolveApiUrl(window.API_URL, DEFAULT_API_URL);
+  const DEFAULT_RESOLVED_API_URL = reviewDeployment?.apiUrl || resolveApiUrl(window.API_URL, DEFAULT_API_URL);
   let currentApiUrl = loadStoredApiUrl(DEFAULT_RESOLVED_API_URL);
 
   const els = {
@@ -447,6 +463,7 @@
   }
 
   function resolveApiUrl(candidate, fallback) {
+    if (reviewDeployment) return reviewDeployment.apiUrl;
     const fallbackUrl = new URL(fallback, window.location.href);
     const rawCandidate = typeof candidate === "string" ? candidate.trim() : "";
     if (!rawCandidate) {
@@ -467,6 +484,7 @@
   }
 
   function loadStoredApiUrl(fallback) {
+    if (reviewDeployment) return reviewDeployment.apiUrl;
     if (!isDevMode) return fallback;
     try {
       const saved = window.localStorage?.getItem(DEV_API_STORAGE_KEY) || "";
@@ -792,6 +810,22 @@
     const title = document.createElement("h3");
     title.textContent = "API Endpoint";
 
+    if (reviewDeployment) {
+      const locked = document.createElement("p");
+      locked.textContent = `Preview API is locked to ${reviewDeployment.apiOrigin}`;
+      const status = document.createElement("pre");
+      status.className = "dev-api-status";
+      const refresh = document.createElement("button");
+      refresh.type = "button";
+      refresh.className = "btn subtle";
+      refresh.textContent = "Refresh Status";
+      refresh.addEventListener("click", () => refreshCatalogStatus(panel));
+      panel.append(title, locked, refresh, status);
+      els.devShellCard.insertBefore(panel, els.devShellCard.firstChild);
+      refreshCatalogStatus(panel);
+      return;
+    }
+
     const controls = document.createElement("div");
     controls.className = "dev-api-controls";
 
@@ -860,6 +894,8 @@
       input.value = nextUrl;
       syncPresetFromUrl(nextUrl);
       storeApiUrl(nextUrl);
+      catalogRevision = null;
+      loadResorts();
       setStatus("Developer API endpoint updated.");
       refreshCatalogStatus(panel);
     });
@@ -869,6 +905,8 @@
       input.value = currentApiUrl;
       syncPresetFromUrl(currentApiUrl);
       clearStoredApiUrl();
+      catalogRevision = null;
+      loadResorts();
       setStatus("Developer API endpoint reset to Render.");
       refreshCatalogStatus(panel);
     });
@@ -1031,9 +1069,38 @@
       .filter(Boolean);
   }
 
+  let catalogReviewMode = false;
+  const normalCatalogTagline = document.querySelector(".tagline").textContent;
+  function applyCatalogReviewScope(bootstrap) {
+    if (isReviewDeployment && bootstrap.review_scope?.mode !== "limited_preview") {
+      throw new Error("Preview API must disclose its review catalog.");
+    }
+    if (bootstrap.review_scope !== undefined && bootstrap.review_scope?.mode !== "limited_preview") {
+      throw new Error("Unsupported catalog review scope");
+    }
+    catalogReviewMode = bootstrap.review_scope?.mode === "limited_preview";
+    const notice = document.getElementById("catalog-review-notice");
+    notice.textContent = catalogReviewMode ? 'Limited catalog preview — for testing. Results compare only this review catalog. Some passes, ages, discounts and resort access are unavailable. Verify provider pricing and eligibility before purchasing.' : "";
+    notice.hidden = !catalogReviewMode;
+    document.querySelector(".tagline").textContent = catalogReviewMode
+      ? "Expert Mode — compare passes in this limited review catalog."
+      : normalCatalogTagline;
+  }
+
+  let catalogRevision = null;
+  let catalogReady = false;
+  let catalogLoadId = 0;
+
   function loadResorts() {
-    return fetch("resorts.json", {
-      credentials: "same-origin",
+    catalogReady = false;
+    clearResults();
+    els.rawResponse.textContent = "";
+    const loadId = ++catalogLoadId;
+    return fetch(apiSiblingUrl("/catalog/bootstrap"), {
+      credentials: "omit",
+      mode: "cors",
+      cache: "no-cache",
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       redirect: "error",
     })
       .then((response) => {
@@ -1042,13 +1109,17 @@
         }
         return response.json();
       })
-      .then((json) => {
-        if (!Array.isArray(json)) {
+      .then((bootstrap) => {
+        if (loadId !== catalogLoadId) return;
+        const json = bootstrap.resorts;
+        if (typeof bootstrap.revision !== "string" || !Array.isArray(json)) {
           throw new Error("Resort list format is invalid");
         }
         if (json.length > MAX_RESORT_CATALOG_ROWS) {
           throw new Error("Resort list is unexpectedly large");
         }
+        applyCatalogReviewScope(bootstrap);
+        catalogRevision = bootstrap.revision;
         resortCatalog = parseResortRows(json);
         resortCatalog.sort((a, b) => a.name.localeCompare(b.name));
         resortById = new Map();
@@ -1063,9 +1134,14 @@
         resortByNormalizedSearchPhrase = new Map(
           Array.from(searchPhrases.entries()).filter((entry) => entry[1])
         );
-        document.querySelectorAll(".resort-row").forEach((row) => wireResortRow(row));
+        document.querySelectorAll(".resort-row").forEach((row) => {
+          wireResortRow(row);
+          row.querySelector(".resort-input")?.dispatchEvent(new Event("catalogupdated"));
+        });
+        catalogReady = true;
       })
       .catch((error) => {
+        if (loadId !== catalogLoadId) return;
         showError(`Resort list failed to load: ${error.message}`);
       });
   }
@@ -1075,8 +1151,8 @@
     row.className = "row rider-row";
     row.innerHTML = `
       <label class="field rider-age-field">
-        <span class="field-label">Age</span>
-        <input type="number" min="0" max="${MAX_AGE}" inputmode="numeric" placeholder="Age" class="input rider-age" aria-label="Rider age" />
+        <span class="field-label">Age at season start</span>
+        <input type="number" min="0" max="${MAX_AGE}" inputmode="numeric" placeholder="Age" class="input rider-age" aria-label="Rider age at season start" aria-describedby="rider-age-guidance" />
       </label>
       <label class="field rider-category-field">
         <span class="field-label">Discount or activity</span>
@@ -1339,11 +1415,30 @@
       }, TYPEAHEAD_DEBOUNCE_MS);
     }
 
-    input.addEventListener("input", scheduleSuggestions);
+    input.addEventListener("catalogupdated", () => {
+      closeSuggestions();
+      const selected = resortById.get(input.dataset.resortId || "");
+      if (selected) applySelectedResort(input, selected);
+      else clearSelectedResort(input);
+    });
+    input.addEventListener("input", () => {
+      closeSuggestions();
+      clearSelectedResort(input);
+      scheduleSuggestions();
+    });
     input.addEventListener("click", () => {
       updateSuggestions({ forceBrowse: true });
     });
     input.addEventListener("keydown", (event) => {
+      if (typeaheadTimer && ["ArrowDown", "ArrowUp", "Enter"].includes(event.key)) {
+        window.clearTimeout(typeaheadTimer);
+        typeaheadTimer = null;
+        updateSuggestions({ forceBrowse: true });
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault();
+          return;
+        }
+      }
       const hasOpenList = suggestions.length > 0 && !list.hidden;
       if (event.key === "ArrowDown" && !hasOpenList) {
         event.preventDefault();
@@ -1822,6 +1917,7 @@
   }
 
   function getPassItemUrl(passItem) {
+    if (isReviewDeployment) return window.SnowGeniusReviewDeployment.providerUrl(passItem?.destination_url);
     const raw =
       passItem?.tracking_url ??
       passItem?.url ??
@@ -2604,6 +2700,25 @@
       return;
     }
 
+    if (resultOptions.every((result) => getResultPasses(result).length === 0)) {
+      const empty = document.createElement("section");
+      empty.className = "result-card";
+      const heading = document.createElement("h3");
+      heading.textContent = catalogReviewMode ? "No match in review catalog" : "No priced recommendation available";
+      const message = document.createElement("p");
+      message.textContent = catalogReviewMode
+        ? "No match in this limited review catalog. This does not mean a suitable pass is unavailable elsewhere."
+        : "No priced pass matches these selections. Try adjusting your resort or access requirements.";
+      empty.appendChild(heading);
+      empty.appendChild(message);
+      const unmet = renderUnmet(getResultUnmet(resultOptions[0]));
+      if (unmet) empty.appendChild(unmet);
+      els.results.appendChild(empty);
+      renderFeedbackBox();
+      revealResults();
+      return;
+    }
+
     const comparison = renderComparison(resultOptions);
     if (comparison) {
       els.results.appendChild(comparison);
@@ -2739,6 +2854,7 @@
   }
 
   function renderFeedbackBox() {
+    if (isReviewDeployment) return;
     if (!els.results || !lastExpertModeInput || !lastExpertModeOutput) {
       console.warn("Feedback box skipped: missing results or captured request data.");
       return;
@@ -2800,6 +2916,7 @@
   }
 
   async function submitFeedback(feedbackType) {
+    if (isReviewDeployment) return;
     if (feedbackSubmitted || !lastExpertModeInput || !lastExpertModeOutput) return;
 
     const status = document.getElementById("feedback-status");
@@ -2885,10 +3002,16 @@
     try {
       const controller = new AbortController();
       timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+      if (!catalogReady) {
+        await loadResorts();
+        throw new Error("Catalog refreshed. Review your resort selections and submit again.");
+      }
       trackExpertModeSubmit(payload);
-      const response = await fetch(currentApiUrl, {
+      const requestCatalogLoadId = catalogLoadId;
+      const requestApiUrl = currentApiUrl;
+      const response = await fetch(requestApiUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-SG-Catalog-Revision": catalogRevision },
         mode: "cors",
         credentials: "omit",
         redirect: "error",
@@ -2899,6 +3022,9 @@
       });
 
       const text = await response.text();
+      if (requestCatalogLoadId !== catalogLoadId || requestApiUrl !== currentApiUrl) {
+        throw new Error("Catalog changed. Review your selections and submit again.");
+      }
       let data = null;
       let responseParseFailed = false;
       try {
@@ -2911,6 +3037,9 @@
         ? text
         : JSON.stringify(data ?? {}, null, 2);
 
+      if (response.status === 409 && data?.code === "catalog_changed") {
+        await loadResorts();
+      }
       if (!response.ok) {
         const detail = data?.detail || data?.error || `Request failed (${response.status})`;
         const analyticsType = response.status >= 400 && response.status < 500
