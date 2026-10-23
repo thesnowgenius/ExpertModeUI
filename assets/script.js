@@ -2102,6 +2102,7 @@
     row.appendChild(left);
     row.appendChild(right);
     container.appendChild(row);
+    window.appendEligibilityGuidance?.(container, passItem.eligibility_guidance);
   }
 
   function renderPassList(passes, recommendationContext = {}) {

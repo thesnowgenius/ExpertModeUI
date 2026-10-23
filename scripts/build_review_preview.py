@@ -68,7 +68,7 @@ def build(origin, output, local_test=False, source=SOURCE):
         target = Path(temporary)/'site';target.mkdir()
         shutil.copytree(source/'assets', target/'assets', ignore=shutil.ignore_patterns('.*','__pycache__','*.pyc','*analytics*'))
         (target/'assets/review-config.js').write_text(config_js)
-        for name in ('bootstrap.js','script.js','styles.css','review-deployment.js','review-config.js'):
+        for name in ('bootstrap.js','script.js','styles.css','review-deployment.js','review-config.js','eligibility-guidance.js','eligibility-guidance.css'):
             path = target/'assets'/name
             fingerprint = hashlib.sha256(path.read_bytes()).hexdigest()[:16]
             index = re.sub(r'assets/'+re.escape(name)+r'(?:\?[^"\s]+)?', 'assets/'+name+'?v='+fingerprint, index)
