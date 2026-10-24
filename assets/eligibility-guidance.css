@@ -1,0 +1,6 @@
+.sg-eligibility-note { margin: .4rem 0; font-size: .875rem; line-height: 1.4; overflow-wrap: anywhere; }
+.sg-eligibility-note summary { cursor: pointer; }
+.sg-eligibility-note summary:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.sg-eligibility-icon { color: #a66b00; margin-right: .35em; font-size: 1.2em; }
+.sg-eligibility-note p { margin: .4rem 0; }
+.sg-eligibility-note ol { padding-left: 1.4rem; }
