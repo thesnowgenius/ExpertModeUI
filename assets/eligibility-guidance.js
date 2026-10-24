@@ -21,7 +21,9 @@
       icon.setAttribute('aria-hidden', 'true');
       summary.appendChild(icon);
       const rider = Number.isInteger(note.rider_index) && note.rider_index >= 0 ? `Rider ${note.rider_index + 1}: ` : '';
-      summary.appendChild(document.createTextNode(rider + (note.kind === 'age_requirement' ? 'Check age requirement' : 'Provider verification required')));
+      const label = note.kind === 'age_requirement' ? 'Check age requirement' : 'Provider verification required';
+      const unconfirmed = note.source_status === 'unconfirmed';
+      summary.appendChild(document.createTextNode(rider + (unconfirmed ? 'Unconfirmed — ' : '') + label));
       details.appendChild(summary);
       const message = document.createElement('p');
       message.textContent = note.message;
@@ -37,7 +39,7 @@
       if (href) {
         const link = document.createElement('a');
         link.href = href; link.target = '_blank'; link.rel = 'noopener noreferrer';
-        link.textContent = 'Check provider requirements'; details.appendChild(link);
+        link.textContent = unconfirmed ? 'View provider information' : 'Check provider requirements'; details.appendChild(link);
       }
       container.appendChild(details);
     });
