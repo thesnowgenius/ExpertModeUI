@@ -11,7 +11,7 @@
   window.appendEligibilityGuidance = (container, notes) => {
     if (!Array.isArray(notes)) return;
     notes.forEach(note => {
-      if (!note || !['age_requirement', 'provider_verification'].includes(note.kind) || typeof note.message !== 'string') return;
+      if (!note || !['age_requirement', 'provider_verification', 'tier_rules'].includes(note.kind) || typeof note.message !== 'string') return;
       const details = document.createElement('details');
       details.className = 'sg-eligibility-note';
       const summary = document.createElement('summary');
@@ -21,7 +21,7 @@
       icon.setAttribute('aria-hidden', 'true');
       summary.appendChild(icon);
       const rider = Number.isInteger(note.rider_index) && note.rider_index >= 0 ? `Rider ${note.rider_index + 1}: ` : '';
-      const label = note.kind === 'age_requirement' ? 'Check age requirement' : 'Provider verification required';
+      const label = note.kind === 'age_requirement' ? 'Check age requirement' : (note.kind === 'tier_rules' ? 'Pass rules' : 'Provider verification required');
       const unconfirmed = note.source_status === 'unconfirmed';
       summary.appendChild(document.createTextNode(rider + (unconfirmed ? 'Unconfirmed — ' : '') + label));
       details.appendChild(summary);
