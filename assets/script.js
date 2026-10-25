@@ -1092,6 +1092,7 @@
   let catalogLoadId = 0;
 
   function loadResorts() {
+    window.renderCatalogNotices?.([]);
     catalogReady = false;
     clearResults();
     els.rawResponse.textContent = "";
@@ -1119,6 +1120,7 @@
           throw new Error("Resort list is unexpectedly large");
         }
         applyCatalogReviewScope(bootstrap);
+        window.renderCatalogNotices?.(bootstrap.unconfirmed_catalog_information);
         catalogRevision = bootstrap.revision;
         resortCatalog = parseResortRows(json);
         resortCatalog.sort((a, b) => a.name.localeCompare(b.name));
@@ -3080,6 +3082,7 @@
       setStatus("Results updated.");
       scrollToResults();
     } catch (error) {
+      window.renderCatalogNotices?.([]);
       lastExpertModeOutput = null;
       trackExpertModeError(payload, requestErrorType(error));
       const message =
