@@ -3054,11 +3054,14 @@
         ? text
         : JSON.stringify(data ?? {}, null, 2);
 
-      if (response.status === 409 && data?.code === "catalog_changed") {
+      const catalogRefreshRequired = response.status === 409 && ["catalog_changed", "pricing_client_upgrade_required"].includes(data?.code);
+      if (catalogRefreshRequired) {
         await loadResorts();
       }
       if (!response.ok) {
-        const detail = data?.detail || data?.error || `Request failed (${response.status})`;
+        const detail = catalogRefreshRequired
+          ? "Catalog pricing changed. Review your selections and submit again."
+          : data?.detail || data?.error || `Request failed (${response.status})`;
         const analyticsType = response.status >= 400 && response.status < 500
           ? "http_4xx"
           : response.status >= 500 && response.status < 600
