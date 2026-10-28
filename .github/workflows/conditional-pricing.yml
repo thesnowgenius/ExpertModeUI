@@ -1,0 +1,23 @@
+name: Conditional pricing UI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check browser JavaScript syntax
+        run: |
+          node --check assets/script.js
+          node --check assets/conditional-pricing.js
+      - name: Test conditional prices and isolated preview guards
+        run: node --test tests/conditional-pricing.test.cjs tests/review-deployment.test.js
+      - name: Test preview artifact assembly
+        run: python3 -m unittest discover -s tests -p 'test_review_preview.py' -v
