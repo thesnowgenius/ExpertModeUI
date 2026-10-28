@@ -1,0 +1,13 @@
+.sg-payable-price { display: block; }
+.sg-regular-price { display: block; font-size: 0.75em; font-weight: 400; opacity: 0.8; }
+.sg-promo-rules { margin: 0.65rem 0; padding: 0.65rem 0.8rem; border: 1px solid #a3b9c6; border-radius: 8px; font-size: 0.9rem; line-height: 1.45; overflow-wrap: anywhere; }
+.sg-promo-rules summary { cursor: pointer; font-weight: 600; }
+.sg-promo-rules summary:focus-visible { outline: 2px solid #4285b4; outline-offset: 4px; }
+.sg-promo-rules p, .sg-promo-rules ul { margin: 0.6rem 0; }
+.sg-promo-rules ul { padding-left: 1.2rem; }
+.sg-promo-rules a { text-decoration: underline; }
+.sg-pricing-note { font-size: 0.9rem; line-height: 1.45; }
+/* Score tables scroll on mobile; promotion rules must remain fully readable. */
+.sg-eligibility-row .sg-promo-rules, .sg-eligibility-row .sg-pricing-note {
+  white-space: normal; max-width: calc(100vw - 80px); box-sizing: border-box;
+}

@@ -924,6 +924,7 @@
   }
 
   function clearResults() {
+    window.SGConditionalPricing?.cancel();
     if (els.results) {
       els.results.replaceChildren();
       els.results.classList.remove("results-visible");
@@ -1088,12 +1089,14 @@
   }
 
   let catalogRevision = null;
+  let conditionalPricingRequired = false;
   let catalogReady = false;
   let catalogLoadId = 0;
 
   function loadResorts() {
     window.renderCatalogNotices?.([]);
     catalogReady = false;
+    conditionalPricingRequired = false;
     clearResults();
     els.rawResponse.textContent = "";
     const loadId = ++catalogLoadId;
@@ -1119,6 +1122,7 @@
         if (json.length > MAX_RESORT_CATALOG_ROWS) {
           throw new Error("Resort list is unexpectedly large");
         }
+        conditionalPricingRequired = window.SGConditionalPricing.requireContract(bootstrap.required_pricing_contract);
         applyCatalogReviewScope(bootstrap);
         window.renderCatalogNotices?.(bootstrap.unconfirmed_catalog_information);
         catalogRevision = bootstrap.revision;
@@ -2100,6 +2104,7 @@
 
     const right = document.createElement("span");
     right.textContent = toCurrency(passItem.price || 0);
+    window.SGConditionalPricing.purchasePrice(right, passItem, recommendationContext.conditionalPricing);
 
     row.appendChild(left);
     row.appendChild(right);
@@ -2296,6 +2301,8 @@
       strategy: item.rank ? `rank ${item.rank}` : `rank ${index + 1}`,
       pass_count: 1,
       price: item.total_cost,
+      conditional_pricing: item.conditional_pricing,
+      conditional_pricing_status: item.conditional_pricing_status,
       passes: [
         {
           pass_id: item.pass_id,
@@ -2662,6 +2669,7 @@
       const price = document.createElement("strong");
       price.className = "comparison-price";
       price.textContent = toCurrency(getResultPrice(result));
+      window.SGConditionalPricing.totalPrice(price, result);
 
       const meta = document.createElement("div");
       meta.className = "comparison-meta";
@@ -2694,6 +2702,7 @@
   function renderResults(data, payload = lastSubmittedPayload, recommendationId = "unknown") {
     clearResults();
     const resultOptions = normalizeResultOptions(data);
+    window.SGConditionalPricing.validateRows(resultOptions, conditionalPricingRequired);
     if (!data || !resultOptions.length) {
       const empty = document.createElement("div");
       empty.className = "result-card";
@@ -2731,6 +2740,7 @@
       const isRecommended = index === 0;
       const parsedRank = Number(result?.__rank);
       const recommendationContext = {
+        conditionalPricing: result.conditional_pricing,
         recommendedRank: Number.isInteger(parsedRank) && parsedRank > 0 ? parsedRank : index + 1,
         estimatedCost: getResultPrice(result),
         estimatedSavings: getResultEstimatedSavings(result),
@@ -2752,6 +2762,7 @@
       const price = document.createElement("div");
       price.className = "result-price";
       price.textContent = toCurrency(getResultPrice(result));
+      window.SGConditionalPricing.totalPrice(price, result);
 
       if (isDevMode || resultOptions.length > 1 || result.__source === "ranked_passes") {
         head.appendChild(title);
@@ -2781,6 +2792,7 @@
       }
 
       content.appendChild(renderPassList(getResultPasses(result), recommendationContext));
+      window.SGConditionalPricing.appendDetails(content, result);
 
       const explanation = renderRecommendationExplanation(result, index, resultOptions, payload);
       if (explanation) {
@@ -3003,6 +3015,7 @@
 
     let timeoutId = null;
     try {
+      clearResults();
       const controller = new AbortController();
       timeoutId = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       if (!catalogReady) {
@@ -3014,7 +3027,8 @@
       const requestApiUrl = currentApiUrl;
       const response = await fetch(requestApiUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-SG-Catalog-Revision": catalogRevision },
+        headers: { "Content-Type": "application/json", "X-SG-Catalog-Revision": catalogRevision,
+          ...(conditionalPricingRequired ? { "X-SG-Pricing-Contract": "conditional-v1" } : {}) },
         mode: "cors",
         credentials: "omit",
         redirect: "error",
@@ -3073,6 +3087,10 @@
       lastRecommendationId = recommendationId;
       lastExpertModeOutput = data;
       renderResults(data, payload, recommendationId);
+      window.SGConditionalPricing.watch(normalizeResultOptions(data), () => {
+        clearResults();
+        setStatus("Pricing changed. Run a new recommendation to see current prices.");
+      });
       if (hasRecommendedResult(normalizeResultOptions(data))) {
         trackExpertModeResult(data, recommendationId);
       } else {
