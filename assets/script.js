@@ -1090,6 +1090,7 @@
 
   let catalogRevision = null;
   let conditionalPricingRequired = false;
+  let conditionalPricingContract;
   let catalogReady = false;
   let catalogLoadId = 0;
 
@@ -1097,6 +1098,7 @@
     window.renderCatalogNotices?.([]);
     catalogReady = false;
     conditionalPricingRequired = false;
+    conditionalPricingContract = undefined;
     clearResults();
     els.rawResponse.textContent = "";
     const loadId = ++catalogLoadId;
@@ -1123,6 +1125,7 @@
           throw new Error("Resort list is unexpectedly large");
         }
         conditionalPricingRequired = window.SGConditionalPricing.requireContract(bootstrap.required_pricing_contract);
+        conditionalPricingContract = bootstrap.required_pricing_contract;
         applyCatalogReviewScope(bootstrap);
         window.renderCatalogNotices?.(bootstrap.unconfirmed_catalog_information);
         catalogRevision = bootstrap.revision;
@@ -3028,7 +3031,7 @@
       const response = await fetch(requestApiUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json", "X-SG-Catalog-Revision": catalogRevision,
-          ...(conditionalPricingRequired ? { "X-SG-Pricing-Contract": "conditional-v1" } : {}) },
+          ...(conditionalPricingRequired ? { "X-SG-Pricing-Contract": conditionalPricingContract } : {}) },
         mode: "cors",
         credentials: "omit",
         redirect: "error",

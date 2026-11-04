@@ -59,8 +59,8 @@
     }
   }
   function requireContract(contract) {
-    if (contract !== undefined && contract !== 'conditional-v1') fail();
-    return contract === 'conditional-v1';
+    if (contract !== undefined && !['conditional-v1', 'conditional-v2'].includes(contract)) fail();
+    return contract !== undefined;
   }
   function text(parent, tag, value, className) {
     const node = document.createElement(tag); node.textContent = value;

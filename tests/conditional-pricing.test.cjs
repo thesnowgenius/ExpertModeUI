@@ -23,7 +23,8 @@ function quote() {
 test('exact cents and paid qualifying purchase survive the display contract',()=>{
   const {api}=setup();assert.equal(api.validate(quote(),500.75).total_cents,50075);
   assert.equal(api.requireContract(undefined),false);assert.equal(api.requireContract('conditional-v1'),true);
-  assert.throws(()=>api.requireContract('conditional-v2'));
+  assert.equal(api.requireContract('conditional-v2'),true);
+  for(const unsupported of ['conditional-v3',null,true,{},''])assert.throws(()=>api.requireContract(unsupported));
 });
 test('wrong totals, missing qualifier, unsafe links and expired rules fail closed',()=>{
   for(const corrupt of [q=>q.total_cents++,q=>q.savings_cents++,q=>q.purchases[0].payable_price_cents=0,
