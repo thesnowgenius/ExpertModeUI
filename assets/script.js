@@ -1071,6 +1071,7 @@
   }
 
   let catalogReviewMode = false;
+  let catalogPilotMode = false;
   const normalCatalogTagline = document.querySelector(".tagline").textContent;
   function applyCatalogReviewScope(bootstrap) {
     if (isReviewDeployment && bootstrap.review_scope?.mode !== "limited_preview") {
@@ -1079,13 +1080,19 @@
     if (bootstrap.review_scope !== undefined && bootstrap.review_scope?.mode !== "limited_preview") {
       throw new Error("Unsupported catalog review scope");
     }
+    if (bootstrap.pilot_scope !== undefined && (bootstrap.pilot_scope?.mode !== "limited_catalog"
+      || typeof bootstrap.pilot_scope.notice !== "string" || !bootstrap.pilot_scope.notice.trim()
+      || bootstrap.pilot_scope.notice.length > 2000)) {
+      throw new Error("Unsupported pilot catalog scope");
+    }
     catalogReviewMode = bootstrap.review_scope?.mode === "limited_preview";
+    catalogPilotMode = !catalogReviewMode && bootstrap.pilot_scope?.mode === "limited_catalog";
     const notice = document.getElementById("catalog-review-notice");
-    notice.textContent = catalogReviewMode ? 'Limited catalog preview — for testing. Results compare only this review catalog. Some passes, ages, discounts and resort access are unavailable. Verify provider pricing and eligibility before purchasing.' : "";
-    notice.hidden = !catalogReviewMode;
+    notice.textContent = catalogReviewMode ? 'Limited catalog preview — for testing. Results compare only this review catalog. Some passes, ages, discounts and resort access are unavailable. Verify provider pricing and eligibility before purchasing.' : catalogPilotMode ? bootstrap.pilot_scope.notice : "";
+    notice.hidden = !(catalogReviewMode || catalogPilotMode);
     document.querySelector(".tagline").textContent = catalogReviewMode
       ? "Expert Mode — compare passes in this limited review catalog."
-      : normalCatalogTagline;
+      : catalogPilotMode ? "Expert Mode — compare passes in this pilot catalog." : normalCatalogTagline;
   }
 
   let catalogRevision = null;
@@ -2709,7 +2716,7 @@
     if (!data || !resultOptions.length) {
       const empty = document.createElement("div");
       empty.className = "result-card";
-      empty.textContent = "No results returned.";
+      empty.textContent = catalogPilotMode ? "No match in this pilot catalog. Try a supported age and destination, or check other providers." : "No results returned.";
       els.results.appendChild(empty);
       revealResults();
       return;
@@ -2719,10 +2726,11 @@
       const empty = document.createElement("section");
       empty.className = "result-card";
       const heading = document.createElement("h3");
-      heading.textContent = catalogReviewMode ? "No match in review catalog" : "No priced recommendation available";
+      heading.textContent = catalogReviewMode ? "No match in review catalog" : catalogPilotMode ? "No match in pilot catalog" : "No priced recommendation available";
       const message = document.createElement("p");
       message.textContent = catalogReviewMode
         ? "No match in this limited review catalog. This does not mean a suitable pass is unavailable elsewhere."
+        : catalogPilotMode ? "No match in this pilot catalog. Try a supported age and destination, or check other providers."
         : "No priced pass matches these selections. Try adjusting your resort or access requirements.";
       empty.appendChild(heading);
       empty.appendChild(message);
