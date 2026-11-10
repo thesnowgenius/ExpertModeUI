@@ -63,4 +63,30 @@ class PreviewBuildTests(unittest.TestCase):
             with self.assertRaises(ValueError):mod.build('https://sa.example.com',Path(root)/'site',source=source)
             self.assertFalse((Path(root)/'site').exists())
 
+    def test_pilot_build_locks_origin_notice_and_preserves_review_default(self):
+        with tempfile.TemporaryDirectory() as root:
+            output=Path(root)/'pilot'
+            notice='Limited Gold and Nitro pilot.'
+            manifest=mod.build('https://pilot.example.com',output,mode='pilot',pilot_notice=notice)
+            index=(output/'index.html').read_text()
+            config=(output/'assets/review-config.js').read_text()
+            self.assertIn('data-sg-deployment="pilot"',index)
+            self.assertIn('connect-src https://pilot.example.com;',index)
+            self.assertIn('"mode": "pilot"',config)
+            self.assertIn(notice,config)
+            self.assertEqual(manifest['kind'],'isolated_expert_pilot')
+            self.assertFalse(manifest['production_approved'])
+            self.assertFalse(manifest['hosted_access_control_verified'])
+            self.assertNotIn('analytics.js',index)
+            self.assertNotIn('resorts.json',index)
+
+    def test_invalid_modes_or_missing_pilot_notice_create_no_output(self):
+        for mode,notice in [('other',None),('review','Pilot'),('pilot',None),
+                            ('pilot',''),('pilot',' padded '),('pilot','x'*2001)]:
+            with tempfile.TemporaryDirectory() as root:
+                output=Path(root)/'site'
+                with self.assertRaises(ValueError):
+                    mod.build('https://pilot.example.com',output,mode=mode,pilot_notice=notice)
+                self.assertFalse(output.exists())
+
 if __name__=='__main__':unittest.main()

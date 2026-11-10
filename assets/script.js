@@ -1,11 +1,13 @@
 (() => {
-  const isReviewDeployment = document.documentElement.dataset.sgDeployment === "review";
+  const deploymentMode = document.documentElement.dataset.sgDeployment;
+  const isIsolatedDeployment = ["review", "pilot"].includes(deploymentMode);
   let reviewDeployment = null;
-  if (isReviewDeployment) {
+  if (isIsolatedDeployment) {
     try {
       reviewDeployment = window.SnowGeniusReviewDeployment.validate(
         window.SnowGeniusReviewConfig,
         document.querySelector('meta[name="sg-review-api-origin"]')?.content,
+        deploymentMode,
       );
     } catch (_error) {
       const notice = document.getElementById("catalog-review-notice");
@@ -18,8 +20,8 @@
   const DEFAULT_API_URL = "https://pass-picker-expert-mode-multi.onrender.com/score_pass";
   const FEEDBACK_ENDPOINT = "https://script.google.com/macros/s/AKfycbwt-xAh5hGm9JZEfMXnQnyF3cHICjrKI7JkcDs4hCL-XtiOSOVNqxi17fCnLFgVmzpo/exec";
   const SOLVER_VERSION = "expert-mode-v1";
-  const funnelAnalytics = isReviewDeployment ? null : window.SnowGeniusFunnelAnalytics;
-  const outboundAnalytics = isReviewDeployment ? null : window.SnowGeniusOutboundAnalytics;
+  const funnelAnalytics = isIsolatedDeployment ? null : window.SnowGeniusFunnelAnalytics;
+  const outboundAnalytics = isIsolatedDeployment ? null : window.SnowGeniusOutboundAnalytics;
   const SNOW_GENIUS_PARENT_ORIGIN = outboundAnalytics?.PARENT_ORIGIN || "https://www.snow-genius.com";
   const ALLOWED_REMOTE_API_HOSTS = new Set(["pass-picker-expert-mode-multi.onrender.com"]);
   const PASS_FAMILY_ICON_CONFIG = [
@@ -1074,8 +1076,8 @@
   let catalogPilotMode = false;
   const normalCatalogTagline = document.querySelector(".tagline").textContent;
   function applyCatalogReviewScope(bootstrap) {
-    if (isReviewDeployment && bootstrap.review_scope?.mode !== "limited_preview") {
-      throw new Error("Preview API must disclose its review catalog.");
+    if (isIsolatedDeployment) {
+      window.SnowGeniusReviewDeployment.validateCatalog(reviewDeployment, bootstrap);
     }
     if (bootstrap.review_scope !== undefined && bootstrap.review_scope?.mode !== "limited_preview") {
       throw new Error("Unsupported catalog review scope");
@@ -1933,7 +1935,7 @@
   }
 
   function getPassItemUrl(passItem) {
-    if (isReviewDeployment) return window.SnowGeniusReviewDeployment.providerUrl(passItem?.destination_url);
+    if (isIsolatedDeployment) return window.SnowGeniusReviewDeployment.providerUrl(passItem?.destination_url);
     const raw =
       passItem?.tracking_url ??
       passItem?.url ??
@@ -2880,7 +2882,7 @@
   }
 
   function renderFeedbackBox() {
-    if (isReviewDeployment) return;
+    if (isIsolatedDeployment) return;
     if (!els.results || !lastExpertModeInput || !lastExpertModeOutput) {
       console.warn("Feedback box skipped: missing results or captured request data.");
       return;
@@ -2942,7 +2944,7 @@
   }
 
   async function submitFeedback(feedbackType) {
-    if (isReviewDeployment) return;
+    if (isIsolatedDeployment) return;
     if (feedbackSubmitted || !lastExpertModeInput || !lastExpertModeOutput) return;
 
     const status = document.getElementById("feedback-status");

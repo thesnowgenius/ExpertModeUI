@@ -1,6 +1,7 @@
-"""Build a separate, pinned Expert preview artifact. Never deploys or edits source.
+"""Build a pinned Expert review or pilot artifact. Never deploys or edits source.
 
 Use --local-test only for loopback browser checks. Output must be a new directory.
+Pilot mode requires the exact notice supplied by its API.
 A generated build is not authentication, catalog approval or a production release.
 """
 from pathlib import Path
@@ -40,7 +41,14 @@ def replace_once(text, old, new):
     return text.replace(old, new, 1)
 
 
-def build(origin, output, local_test=False, source=SOURCE):
+def build(origin, output, local_test=False, source=SOURCE, mode="review", pilot_notice=None):
+    if mode not in ("review", "pilot"):
+        raise ValueError("Unsupported isolated deployment mode")
+    if mode == "pilot" and (not isinstance(pilot_notice, str) or not pilot_notice.strip()
+            or pilot_notice != pilot_notice.strip() or len(pilot_notice) > 2000):
+        raise ValueError("An exact pilot notice is required")
+    if mode == "review" and pilot_notice is not None:
+        raise ValueError("Pilot notice requires pilot mode")
     origin = api_origin(origin, local_test)
     source = Path(source).resolve(); output = Path(output).absolute()
     if output.resolve().is_relative_to(source):
@@ -52,7 +60,7 @@ def build(origin, output, local_test=False, source=SOURCE):
     if any(p.is_symlink() for p in asset_paths):
         raise ValueError('Symlink assets are not permitted.')
     index = (source/'index.html').read_text()
-    index = replace_once(index, '<html lang="en">', '<html lang="en" data-sg-deployment="review">')
+    index = replace_once(index, '<html lang="en">', '<html lang="en" data-sg-deployment="'+mode+'">')
     index = replace_once(index, '<head>', '<head>\n  <meta name="sg-review-api-origin" content="'+html.escape(origin, quote=True)+'">\n  <meta name="robots" content="noindex, nofollow">\n  <script src="assets/review-deployment.js"></script>\n  <script src="assets/review-config.js"></script>')
     index, count = re.subn(r"connect-src [^;]+;", 'connect-src '+origin+';', index)
     if count != 1: raise ValueError('Expected one CSP connect-src directive.')
@@ -62,7 +70,8 @@ def build(origin, output, local_test=False, source=SOURCE):
     index, count = re.subn(r'  <link rel="preload" href="resorts.json"[^>]+>\n', '', index)
     if count != 1: raise ValueError('Expected old resort preload reference.')
     # A separate artifact with content-hashed asset references prevents mixed caches.
-    config = {'mode':'review','apiOrigin':origin,'localTest':local_test}
+    config = {'mode':mode,'apiOrigin':origin,'localTest':local_test}
+    if mode == 'pilot': config['pilotNotice'] = pilot_notice
     config_js = 'window.SnowGeniusReviewConfig = Object.freeze('+json.dumps(config, sort_keys=True)+');\n'
     with tempfile.TemporaryDirectory(prefix='sg-preview-', dir=output.parent) as temporary:
         target = Path(temporary)/'site';target.mkdir()
@@ -73,7 +82,7 @@ def build(origin, output, local_test=False, source=SOURCE):
             fingerprint = hashlib.sha256(path.read_bytes()).hexdigest()[:16]
             index = re.sub(r'assets/'+re.escape(name)+r'(?:\?[^"\s]+)?', 'assets/'+name+'?v='+fingerprint, index)
         (target/'index.html').write_text(index)
-        manifest = {'kind':'isolated_expert_preview','api_origin':origin,'local_test_only':local_test,
+        manifest = {'kind':'isolated_expert_pilot' if mode == 'pilot' else 'isolated_expert_preview','deployment_mode':mode,'api_origin':origin,'local_test_only':local_test,
                     'production_approved':False,'hosted_access_control_verified':False,
                     'files':{str(p.relative_to(target)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(target.rglob('*')) if p.is_file()}}
         (target/'preview-manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
@@ -86,9 +95,12 @@ def main():
     parser.add_argument('--api-origin',required=True)
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--local-test',action='store_true')
+    parser.add_argument('--mode',choices=('review','pilot'),default='review')
+    parser.add_argument('--pilot-notice-file',type=Path,help='UTF-8 text with the exact accepted pilot notice')
     args=parser.parse_args()
     try:
-        build(args.api_origin,args.output,args.local_test)
+        build(args.api_origin,args.output,args.local_test,mode=args.mode,
+              pilot_notice=args.pilot_notice_file.read_text().rstrip("\n") if args.pilot_notice_file else None)
     except (ValueError,OSError):
         parser.exit(2,'Preview build refused: invalid configuration, existing output or source layout drift. No input values printed.\n')
     print('Created isolated preview artifact; deployment remains unapproved.')
