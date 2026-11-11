@@ -1072,6 +1072,7 @@
       .filter(Boolean);
   }
 
+  let catalogPricingDeadline = null;
   let catalogReviewMode = false;
   let catalogPilotMode = false;
   const normalCatalogTagline = document.querySelector(".tagline").textContent;
@@ -1108,6 +1109,7 @@
     catalogReady = false;
     conditionalPricingRequired = false;
     conditionalPricingContract = undefined;
+    catalogPricingDeadline = null;
     clearResults();
     els.rawResponse.textContent = "";
     const loadId = ++catalogLoadId;
@@ -1136,6 +1138,7 @@
         conditionalPricingRequired = window.SGConditionalPricing.requireContract(bootstrap.required_pricing_contract);
         conditionalPricingContract = bootstrap.required_pricing_contract;
         applyCatalogReviewScope(bootstrap);
+        catalogPricingDeadline = window.SGConditionalPricing.catalogDeadline(bootstrap);
         window.renderCatalogNotices?.(bootstrap.unconfirmed_catalog_information);
         catalogRevision = bootstrap.revision;
         resortCatalog = parseResortRows(json);
@@ -3103,10 +3106,6 @@
       lastRecommendationId = recommendationId;
       lastExpertModeOutput = data;
       renderResults(data, payload, recommendationId);
-      window.SGConditionalPricing.watch(normalizeResultOptions(data), () => {
-        clearResults();
-        setStatus("Pricing changed. Run a new recommendation to see current prices.");
-      });
       if (hasRecommendedResult(normalizeResultOptions(data))) {
         trackExpertModeResult(data, recommendationId);
       } else {
@@ -3114,6 +3113,12 @@
       }
       showNotice("");
       setStatus("Results updated.");
+      window.SGConditionalPricing.watch(normalizeResultOptions(data), () => {
+        clearResults();
+        lastExpertModeOutput = null;
+        els.rawResponse.textContent = "";
+        setStatus("Pricing changed. Run a new recommendation to see current prices.");
+      }, catalogPricingDeadline);
       scrollToResults();
     } catch (error) {
       window.renderCatalogNotices?.([]);

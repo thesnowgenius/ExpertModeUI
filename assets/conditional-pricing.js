@@ -131,12 +131,26 @@
     if (Date.now() >= expiry) { const callback = expire; cancel(); callback(); }
     else timer = setTimeout(checkExpiry, Math.min(expiry-Date.now()+1, 86400000));
   }
-  function watch(rows, callback) {
+  function catalogDeadline(catalog) {
+    const deadline = catalog.pricing_valid_until;
+    if (deadline === undefined && catalog.pilot_scope?.mode !== "limited_catalog") return null;
+    if (deadline === null) return null;
+    if (typeof deadline !== "string" || !Number.isFinite(Date.parse(deadline))) {
+      throw new Error("Catalog pricing deadline is missing or invalid.");
+    }
+    return deadline;
+  }
+  function watch(rows, callback, catalogDeadline = null) {
     cancel();
     const dates = rows.map(r => r.conditional_pricing?.next_offer_transition_at).filter(Boolean).map(Date.parse);
+    if (rows.length && catalogDeadline !== null) {
+      const parsed = Date.parse(catalogDeadline);
+      if (!Number.isFinite(parsed)) throw new Error("Invalid catalog pricing deadline.");
+      dates.push(parsed);
+    }
     if (!dates.length) return;
     expiry = Math.min(...dates); expire = callback; checkExpiry();
   }
   if (typeof document !== 'undefined') document.addEventListener('visibilitychange', checkExpiry);
-  window.SGConditionalPricing = {validate, validateRows, requireContract, totalPrice, purchasePrice, appendDetails, watch, cancel};
+  window.SGConditionalPricing = {validate, validateRows, requireContract, totalPrice, purchasePrice, appendDetails, catalogDeadline, watch, cancel};
 })();

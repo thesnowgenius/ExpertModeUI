@@ -53,3 +53,26 @@ test('expiry clears old quotes and a new result cancels the old deadline',()=>{
   const second=setup();second.api.watch([{conditional_pricing:quote()}],()=>expired++);
   second.api.watch([],()=>expired++);second.advance(61000);assert.equal(expired,2);
 });
+
+test('standard prices clear at the catalog deadline without another request',()=>{
+  const {api,advance}=setup();let expired=0;
+  const deadline=new Date(Date.now()+1000).toISOString();
+  const catalog={pilot_scope:{mode:'limited_catalog'},pricing_valid_until:deadline};
+  api.watch([{price:849}],()=>expired++,api.catalogDeadline(catalog));
+  advance(1001);assert.equal(expired,1);
+});
+test('catalog deadlines are mandatory for pilot bootstrap and validated when supplied',()=>{
+  const {api}=setup();
+  assert.equal(api.catalogDeadline({}),null);
+  assert.equal(api.catalogDeadline({pricing_valid_until:null}),null);
+  for(const value of [undefined,'not-a-date',123,{}]) {
+    assert.throws(()=>api.catalogDeadline({pilot_scope:{mode:'limited_catalog'},pricing_valid_until:value}));
+  }
+});
+test('empty results and replacement results cancel the old standard deadline',()=>{
+  const {api,advance}=setup();let expired=0;
+  const deadline=new Date(Date.now()+1000).toISOString();
+  api.watch([{price:849}],()=>expired++,deadline);
+  api.watch([],()=>expired++,deadline);
+  advance(1001);assert.equal(expired,0);
+});
