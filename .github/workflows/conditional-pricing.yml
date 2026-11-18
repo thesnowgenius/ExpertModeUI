@@ -21,6 +21,6 @@ jobs:
           node --check assets/script.js
           node --check assets/conditional-pricing.js
       - name: Test conditional prices and isolated preview guards
-        run: node --test tests/conditional-pricing.test.cjs tests/review-deployment.test.js
+        run: node --test tests/conditional-pricing.test.cjs tests/review-deployment.test.js tests/recommendation-reasons.test.cjs
       - name: Test preview artifact assembly
         run: python3 -m unittest discover -s tests -p 'test_review_preview.py' -v

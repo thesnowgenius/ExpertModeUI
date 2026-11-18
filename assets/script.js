@@ -2454,8 +2454,11 @@
       reasons.push("Exact coverage was not available within the pass-combo limit, so the solver returned the best partial coverage.");
     }
 
-    if (riderCount) {
-      reasons.push(`Matched pricing for ${riderCount} rider(s).`);
+    const pricedRiderCount = new Set(getResultPasses(result)
+      .map((passItem) => passItem.rider_index)
+      .filter((riderIndex) => Number.isInteger(riderIndex) && riderIndex >= 0 && riderIndex < riderCount)).size;
+    if (pricedRiderCount) {
+      reasons.push(`Includes priced passes for ${pricedRiderCount} of ${riderCount} riders.`);
     }
     if (passCount) {
       reasons.push(`Uses ${passCount} pass(es) for ${toCurrency(price)} total.`);
