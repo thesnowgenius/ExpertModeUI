@@ -1261,3 +1261,6 @@ body{
     width:100%;
   }
 }
+
+.catalog-review-notice { margin: 16px 0; padding: 14px 16px; border: 1px solid #d4a34b; border-radius: 12px; background: #fff4d9; color: #573600; text-align: left; line-height: 1.5; overflow-wrap: anywhere; }
+.catalog-review-notice[hidden] { display: none; }
